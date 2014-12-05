@@ -1187,4 +1187,7 @@
 
     <!-- Indicates whether the tapping to open qs panel is supported -->
     <bool name="config_statusBarTapToExpandShade">false</bool>
+
+    <!-- Notification counter -->
+    <integer name="status_bar_notification_info_maxnum">999</integer>
 </resources>

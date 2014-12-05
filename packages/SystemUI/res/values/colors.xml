@@ -288,4 +288,7 @@
     <color name="pin_bouncer_action_button_bg">@androidprv:color/surface_effect_0</color>
     <!-- Bouncer background when blur is not enabled.   -->
     <color name="bouncer_fallback_bg">@android:color/system_accent2_200</color>
+
+    <!-- Notification counter -->
+    <color name="notification_number_text_color">#ff000000</color>
 </resources>
