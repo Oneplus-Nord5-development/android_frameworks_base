@@ -188,7 +188,7 @@ public class JobSchedulerService extends com.android.server.SystemService
     /** The maximum number of jobs that we allow an app to schedule */
     private static final int MAX_JOBS_PER_APP = 150;
     /** The number of the most recently completed jobs to keep track of for debugging purposes. */
-    private static final int NUM_COMPLETED_JOB_HISTORY = 20;
+    private static final int NUM_COMPLETED_JOB_HISTORY = 5;
 
     /**
      * Require the hosting job to specify a network constraint if the included
