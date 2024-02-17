@@ -39,6 +39,7 @@ import java.util.Locale;
 /** A class to extract Drawables from a MessagingStyle/ConversationStyle message. */
 public class LocalImageResolver {
 
+    private static final boolean LOGD = false;
     private static final String TAG = "LocalImageResolver";
 
     /** There's no max size specified, load at original size. */
@@ -246,7 +247,9 @@ public class LocalImageResolver {
         // ImageDecoder documentation is misleading a bit - it'll throw NotFoundException
         // in some cases despite it not saying so.
         } catch (IOException | Resources.NotFoundException e) {
-            Log.d(TAG, "Couldn't use ImageDecoder for drawable, falling back to non-resized load.");
+            if (LOGD) {
+                Log.d(TAG, "Couldn't use ImageDecoder for drawable, falling back to non-resized load.");
+            }
             return null;
         }
     }
