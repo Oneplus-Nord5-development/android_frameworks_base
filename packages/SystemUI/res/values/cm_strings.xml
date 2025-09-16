@@ -120,6 +120,9 @@
     <!-- Content description indicating that tapping the element will allow deleting the screenshot [CHAR LIMIT=NONE] -->
     <string name="screenshot_delete_description">Delete screenshot</string>
 
+    <!-- 4G icon instead LTE -->
+    <string name="fourg_icon_title">4G icon</string>
+
     <!-- Screen record -->
     <string name="screenrecord_lowquality_label">Lower quality</string>
     <string name="screenrecord_lowquality_summary">For smaller file size</string>
