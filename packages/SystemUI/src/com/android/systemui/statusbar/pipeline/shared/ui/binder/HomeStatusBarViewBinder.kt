@@ -121,6 +121,11 @@ constructor(
         // Set some top-level views to gone before we get started
         val primaryChipView: View = view.requireViewById(R.id.ongoing_activity_chip_primary)
         val systemInfoView = view.requireViewById<View>(R.id.status_bar_end_side_content)
+        val networkTrafficStartHolder =
+            view.requireViewById<View>(R.id.network_traffic_holder_start)
+        val networkTrafficCenterHolder =
+            view.requireViewById<View>(R.id.network_traffic_holder_center)
+        val networkTrafficEndHolder = view.requireViewById<View>(R.id.network_traffic_holder_end)
         val leftClock: Clock = view.requireViewById(R.id.clock)
         val centerClock: Clock = view.findViewById(R.id.clock_center)
         val rightClock: Clock = view.findViewById(R.id.clock_right)
@@ -131,6 +136,9 @@ constructor(
             // GONE because this shouldn't take space in the layout
             primaryChipView.hideInitially(state = View.GONE)
             systemInfoView.hideInitially()
+            networkTrafficStartHolder.hideInitially()
+            networkTrafficCenterHolder.hideInitially()
+            networkTrafficEndHolder.hideInitially()
             leftClock.hideInitially(state = View.GONE)
             centerClock.hideInitially(state = View.GONE)
             rightClock.hideInitially(state = View.GONE)
@@ -477,29 +485,30 @@ constructor(
 
                     launch {
                         viewModel.systemInfoCombinedVis.collect { (baseVis, animState) ->
-                            // Broadly speaking, the baseVis controls the view.visibility, and
-                            // the animation state uses only alpha to achieve its effect. This
-                            // means that we can always modify the visibility, and if we're
-                            // animating we can use the animState to handle it. If we are not
-                            // animating, then we can use the baseVis default animation
-                            if (animState.isAnimatingChip()) {
-                                // Just apply the visibility of the view, but don't animate
-                                systemInfoView.visibility = baseVis.visibility
-                                // Now apply the animation state, with its animator
-                                when (animState) {
-                                    AnimatingIn -> {
-                                        systemEventChipAnimateIn?.invoke(systemInfoView)
-                                    }
-                                    AnimatingOut -> {
-                                        systemEventChipAnimateOut?.invoke(systemInfoView)
-                                    }
-                                    else -> {
-                                        // Nothing to do here
-                                    }
-                                }
-                            } else {
-                                systemInfoView.adjustVisibility(baseVis)
-                            }
+                            systemInfoView.adjustVisibilityForChipAnimationState(
+                                baseVis = baseVis,
+                                animationState = animState,
+                                animateIn = systemEventChipAnimateIn,
+                                animateOut = systemEventChipAnimateOut,
+                            )
+                            networkTrafficStartHolder.adjustVisibilityForChipAnimationState(
+                                baseVis = baseVis,
+                                animationState = animState,
+                                animateIn = systemEventChipAnimateIn,
+                                animateOut = systemEventChipAnimateOut,
+                            )
+                            networkTrafficCenterHolder.adjustVisibilityForChipAnimationState(
+                                baseVis = baseVis,
+                                animationState = animState,
+                                animateIn = systemEventChipAnimateIn,
+                                animateOut = systemEventChipAnimateOut,
+                            )
+                            networkTrafficEndHolder.adjustVisibilityForChipAnimationState(
+                                baseVis = baseVis,
+                                animationState = animState,
+                                animateIn = systemEventChipAnimateIn,
+                                animateOut = systemEventChipAnimateOut,
+                            )
                         }
                     }
                 }
@@ -624,6 +633,25 @@ constructor(
             this.show(model.shouldAnimateChange)
         } else {
             this.hide(model.visibility, model.shouldAnimateChange)
+        }
+    }
+
+    private fun View.adjustVisibilityForChipAnimationState(
+        baseVis: VisibilityModel,
+        animationState: SystemEventAnimationState,
+        animateIn: ((View) -> Unit)?,
+        animateOut: ((View) -> Unit)?,
+    ) {
+        // baseVis controls visibility and non-chip animations, chip state only controls alpha/x.
+        if (animationState.isAnimatingChip()) {
+            visibility = baseVis.visibility
+            when (animationState) {
+                AnimatingIn -> animateIn?.invoke(this)
+                AnimatingOut -> animateOut?.invoke(this)
+                else -> {}
+            }
+        } else {
+            adjustVisibility(baseVis)
         }
     }
 
