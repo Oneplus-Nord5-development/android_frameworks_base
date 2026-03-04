@@ -70,6 +70,42 @@ object BatteryFrame {
             viewportHeight = 6.03.dp,
         )
 
+    val bodyPathSpecPortrait: PathSpec =
+        PathSpec(
+            path =
+                Path().apply {
+                    addRoundRect(
+                        RoundRect(
+                            rect = Rect(0f, 0f, 16f, 24f),
+                            topLeft = CornerRadius(4f),
+                            topRight = CornerRadius(4f),
+                            bottomRight = CornerRadius(4f),
+                            bottomLeft = CornerRadius(4f),
+                        )
+                    )
+                },
+            viewportWidth = 16.dp,
+            viewportHeight = 24.dp,
+        )
+
+    val capPathSpecPortrait: PathSpec =
+        PathSpec(
+            path =
+                Path().apply {
+                    addRoundRect(
+                        RoundRect(
+                            rect = Rect(0f, 0f, 7f, 1.5f),
+                            topLeft = CornerRadius(1f),
+                            topRight = CornerRadius(1f),
+                            bottomRight = CornerRadius(1f),
+                            bottomLeft = CornerRadius(1f),
+                        )
+                    )
+                },
+            viewportWidth = 7.dp,
+            viewportHeight = 1.5.dp,
+        )
+
     /** The width of the drawable that is usable for inside elements */
     const val innerWidth = 24f
 
@@ -78,6 +114,15 @@ object BatteryFrame {
 
     /** Corner radius for the battery body */
     const val cornerRadius = 4f
+
+    /** The width of the portrait drawable that is usable for inside elements */
+    const val innerWidthPortrait = 16f
+
+    /** The height of the portrait drawable that is usable for inside elements */
+    const val innerHeightPortrait = 24f
+
+    /** Corner radius for the portrait battery body */
+    const val cornerRadiusPortrait = 4f
 }
 
 /**
