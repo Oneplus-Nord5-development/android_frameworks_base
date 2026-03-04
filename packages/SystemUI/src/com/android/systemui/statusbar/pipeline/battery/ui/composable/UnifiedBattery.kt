@@ -123,7 +123,7 @@ fun BatteryCanvas(
                 drawPath(path.path, bgColor)
                 // Then draw the body, clipped to the fill level
                 if (level != null && level > 0) {
-                    clipRect(0f, 0f, level.scaledLevel(), innerHeight) {
+                    clipRect(0f, 0f, level.scaledLevel(innerWidth), innerHeight) {
                         drawRoundRect(
                             color = colors.fill,
                             topLeft = Offset.Zero,
@@ -157,8 +157,7 @@ fun BatteryCanvas(
 private const val INTER_GLYPH_PADDING_PX = 0.8f
 
 /** Calculate the right-edge of the clip for the fill-rect, based on a level of [0-100] */
-private fun Int.scaledLevel(): Float {
-    val endSide = BatteryFrame.innerWidth
+private fun Int.scaledLevel(endSide: Float): Float {
     return ceil((toFloat() / 100f) * endSide)
 }
 
@@ -235,13 +234,40 @@ fun BatteryLayout(
             } else if (iconStyle == BatteryRepository.ICON_STYLE_TEXT) {
                 // Empty on purpose
             } else {
+                val isPortrait = iconStyle == BatteryRepository.ICON_STYLE_PORTRAIT
+                val bodyPathSpec =
+                    if (isPortrait) BatteryFrame.bodyPathSpecPortrait else BatteryFrame.bodyPathSpec
+                val capPathSpec =
+                    if (isPortrait) BatteryFrame.capPathSpecPortrait else BatteryFrame.capPathSpec
                 BatteryBody(
-                    pathSpec = BatteryFrame.bodyPathSpec,
+                    pathSpec = bodyPathSpec,
+                    innerWidth =
+                        if (isPortrait) BatteryFrame.innerWidthPortrait else BatteryFrame.innerWidth,
+                    innerHeight =
+                        if (isPortrait) {
+                            BatteryFrame.innerHeightPortrait
+                        } else {
+                            BatteryFrame.innerHeight
+                        },
+                    cornerRadius =
+                        if (isPortrait) {
+                            BatteryFrame.cornerRadiusPortrait
+                        } else {
+                            BatteryFrame.cornerRadius
+                        },
+                    verticalFill = isPortrait,
                     levelProvider = levelProvider,
                     glyphsProvider = glyphsProvider,
                     isFullProvider = isFullProvider,
                     colorsProvider = colorsProvider,
-                    modifier = Modifier.layoutId(BatteryMeasurePolicy.LayoutId.Frame),
+                    modifier =
+                        Modifier.layoutId(
+                            if (isPortrait) {
+                                BatteryMeasurePolicy.LayoutId.FramePortrait
+                            } else {
+                                BatteryMeasurePolicy.LayoutId.Frame
+                            }
+                        ),
                     contentDescription = contentDescription,
                 )
                 if (attribution != null) {
@@ -255,6 +281,8 @@ fun BatteryLayout(
                     )
                 } else {
                     BatteryCap(
+                        pathSpec = capPathSpec,
+                        isPortrait = isPortrait,
                         colorsProvider = colorsProvider,
                         isFullProvider = isFullProvider,
                         glyphsProvider = glyphsProvider,
@@ -273,6 +301,8 @@ class BatteryMeasurePolicy : MeasurePolicy {
     sealed class LayoutId {
         data object Frame : LayoutId()
 
+        data object FramePortrait : LayoutId()
+
         data object FrameCircle : LayoutId()
 
         data object Cap : LayoutId()
@@ -288,25 +318,50 @@ class BatteryMeasurePolicy : MeasurePolicy {
     ): MeasureResult {
         val batteryFrame =
             measurables.fastFirstOrNull {
-                it.layoutId == LayoutId.Frame || it.layoutId == LayoutId.FrameCircle
+                it.layoutId == LayoutId.Frame ||
+                    it.layoutId == LayoutId.FramePortrait ||
+                    it.layoutId == LayoutId.FrameCircle
             } ?: return layout(0, 0) {}
 
-        // We will scale the entire battery icon based on the given height
-        val scale = constraints.maxHeight / BatteryFrame.innerHeight
+        val isPortrait = batteryFrame.layoutId == LayoutId.FramePortrait
+        val isCircle = batteryFrame.layoutId == LayoutId.FrameCircle
+        val bodyPathSpec =
+            if (isPortrait) BatteryFrame.bodyPathSpecPortrait else BatteryFrame.bodyPathSpec
+        val baseInnerHeight =
+            if (isPortrait) {
+                BatteryFrame.innerHeightPortrait
+            } else {
+                BatteryFrame.innerHeight
+            }
+        val capHeightForScale =
+            if (isPortrait) {
+                BatteryFrame.capPathSpecPortrait.viewportHeight.value
+            } else {
+                0f
+            }
+        val totalHeightForScale =
+            if (isPortrait) {
+                baseInnerHeight + capHeightForScale
+            } else {
+                baseInnerHeight
+            }
 
-        val batterySize = BatteryFrame.bodyPathSpec.scaledSize(scale)
+        // For portrait style, account for the top cap in the scale so the icon doesn't clip.
+        val scale = constraints.maxHeight / totalHeightForScale
+
+        val batterySize = bodyPathSpec.scaledSize(scale)
         val batteryFramePlaceable =
             batteryFrame.measure(
                 constraints =
                     constraints.copy(
                         minWidth =
-                            if (batteryFrame.layoutId == LayoutId.FrameCircle) {
+                            if (isCircle) {
                                 batterySize.height.roundToInt()
                             } else {
                                 batterySize.width.roundToInt()
                             },
                         maxWidth =
-                            if (batteryFrame.layoutId == LayoutId.FrameCircle) {
+                            if (isCircle) {
                                 batterySize.height.roundToInt()
                             } else {
                                 batterySize.width.roundToInt()
@@ -319,7 +374,12 @@ class BatteryMeasurePolicy : MeasurePolicy {
         val cap = measurables.fastFirstOrNull { it.layoutId == LayoutId.Cap }
         val capPlaceable = run {
             cap?.let {
-                val size = BatteryFrame.capPathSpec.scaledSize(scale)
+                val size =
+                    if (isPortrait) {
+                        BatteryFrame.capPathSpecPortrait.scaledSize(scale)
+                    } else {
+                        BatteryFrame.capPathSpec.scaledSize(scale)
+                    }
                 val w = size.width.roundToInt()
                 val h = size.height.roundToInt()
                 it.measure(
@@ -344,15 +404,40 @@ class BatteryMeasurePolicy : MeasurePolicy {
         }
 
         var totalWidth: Int = batteryFramePlaceable.width
+        var totalHeight: Int = batterySize.height.roundToInt()
         if (attrPlaceable != null) {
-            totalWidth += (attrPlaceable.width * 0.8).roundToInt()
+            totalWidth += (attrPlaceable.width * (1 - attrOverlap)).roundToInt()
         } else if (capPlaceable != null) {
-            // 1dp of padding * scale for the cap
-            totalWidth += capPlaceable.width + scale.roundToInt()
+            if (isPortrait) {
+                totalWidth = maxOf(totalWidth, capPlaceable.width)
+                totalHeight += capPlaceable.height
+            } else {
+                // 1dp of padding * scale for the cap
+                totalWidth += capPlaceable.width + scale.roundToInt()
+            }
         }
-        val totalHeight = batterySize.height.roundToInt()
         return layout(totalWidth, totalHeight) {
-            if (layoutDirection == LayoutDirection.Rtl) {
+            if (isPortrait) {
+                if (attrPlaceable != null) {
+                    batteryFramePlaceable.place(0, 0)
+                    placeCenteredVertically(
+                        placeable = attrPlaceable,
+                        containerHeight = batteryFramePlaceable.height,
+                        xOffset =
+                            (batteryFramePlaceable.width - (attrOverlap * attrPlaceable.width))
+                                .roundToInt(),
+                    )
+                } else if (capPlaceable != null) {
+                    val bodyYOffset = capPlaceable.height
+                    batteryFramePlaceable.place((totalWidth - batteryFramePlaceable.width) / 2, bodyYOffset)
+                    capPlaceable.place(
+                        x = (totalWidth - capPlaceable.width) / 2,
+                        y = 0,
+                    )
+                } else {
+                    batteryFramePlaceable.place((totalWidth - batteryFramePlaceable.width) / 2, 0)
+                }
+            } else if (layoutDirection == LayoutDirection.Rtl) {
                 val (offsetX, placeable) =
                     when {
                         // Attr overlaps the battery frame by 20% of its own width
@@ -525,6 +610,10 @@ fun CircleBatteryBody(
 @Composable
 fun BatteryBody(
     pathSpec: PathSpec,
+    innerWidth: Float,
+    innerHeight: Float,
+    cornerRadius: Float,
+    verticalFill: Boolean = false,
     levelProvider: () -> Int?,
     glyphsProvider: () -> List<BatteryGlyph>,
     isFullProvider: () -> Boolean,
@@ -563,32 +652,36 @@ fun BatteryBody(
 
                 // 2. clip the fill to the level if we have it
                 if (level != null && level > 0) {
+                    val scaledLevel = level.scaledLevel(if (verticalFill) innerHeight else innerWidth)
                     clipRect(
-                        left = if (!rtl) 0f else BatteryFrame.innerWidth - level.scaledLevel(),
-                        top = 0f,
-                        right = if (!rtl) level.scaledLevel() else BatteryFrame.innerWidth,
-                        bottom = BatteryFrame.innerHeight,
+                        left =
+                            if (verticalFill) {
+                                0f
+                            } else if (!rtl) {
+                                0f
+                            } else {
+                                innerWidth - scaledLevel
+                            },
+                        top = if (verticalFill) innerHeight - scaledLevel else 0f,
+                        right = if (verticalFill) innerWidth else if (!rtl) scaledLevel else innerWidth,
+                        bottom = innerHeight,
                     ) {
                         // 3. Draw the rounded rect fill fully, it'll be clipped above
                         drawRoundRect(
                             color = colors.fill,
                             topLeft = Offset.Zero,
-                            size =
-                                Size(
-                                    width = BatteryFrame.innerWidth,
-                                    height = BatteryFrame.innerHeight,
-                                ),
-                            CornerRadius(x = BatteryFrame.cornerRadius),
+                            size = Size(width = innerWidth, height = innerHeight),
+                            CornerRadius(x = cornerRadius),
                         )
                     }
                 }
             }
 
             // Next: draw the glyphs
-            var horizontalOffset = (BatteryFrame.innerWidth - totalGlyphWidth) / 2f
+            var horizontalOffset = (innerWidth - totalGlyphWidth) / 2f
             for (glyph in glyphs) {
                 // Move the glyph to the right spot
-                val verticalOffset = (BatteryFrame.innerHeight - glyph.height) / 2
+                val verticalOffset = (innerHeight - glyph.height) / 2
                 inset(
                     // Never try and inset more than half of the available size - see b/400246091.
                     minOf(horizontalOffset, size.width / 2),
@@ -604,15 +697,19 @@ fun BatteryBody(
 
 @Composable
 fun BatteryCap(
+    pathSpec: PathSpec,
+    isPortrait: Boolean,
     colorsProvider: () -> BatteryColors,
     isFullProvider: () -> Boolean,
     glyphsProvider: () -> List<BatteryGlyph>,
     modifier: Modifier = Modifier,
 ) {
-    val pathSpec = BatteryFrame.capPathSpec
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
-    Canvas(modifier = modifier.scale(scaleX = if (rtl) -1f else 1f, scaleY = 1f)) {
+    Canvas(
+        modifier =
+            modifier.scale(scaleX = if (!isPortrait && rtl) -1f else 1f, scaleY = 1f)
+    ) {
         val colors = colorsProvider()
         val isFull = isFullProvider()
         val hasGlyphs = glyphsProvider().isNotEmpty()
