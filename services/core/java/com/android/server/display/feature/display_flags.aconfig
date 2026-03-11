@@ -13,6 +13,15 @@ flag {
 }
 
 flag {
+    name: "refresh_rate_manager_api"
+    namespace: "display_manager"
+    description: "API for RefreshRateManager and MANAGE_REFRESH_RATE permission"
+    bug: "000000000"
+    is_fixed_read_only: true
+    is_exported: true
+}
+
+flag {
     name: "resolution_backup_restore"
     namespace: "display_manager"
     description: "Backup/Restore support for High Resolution setting"

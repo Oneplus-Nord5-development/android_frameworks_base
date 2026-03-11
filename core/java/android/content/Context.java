@@ -4606,6 +4606,7 @@ public abstract class Context {
                 // @hide: HDMI_CONTROL_SERVICE,
                 INPUT_SERVICE,
                 DISPLAY_SERVICE,
+                // @hide: REFRESH_RATE_SERVICE,
                 // @hide COLOR_DISPLAY_SERVICE,
                 USER_SERVICE,
                 RESTRICTIONS_SERVICE,
@@ -6209,6 +6210,16 @@ public abstract class Context {
      * @see android.hardware.display.DisplayManager
      */
     public static final String DISPLAY_SERVICE = "display";
+
+    /**
+     * Use with {@link #getSystemService(String)} to retrieve a
+     * {@link android.hardware.display.RefreshRateManager} for controlling refresh rate policies.
+     *
+     * @see #getSystemService(String)
+     * @see android.hardware.display.RefreshRateManager
+     * @hide
+     */
+    public static final String REFRESH_RATE_SERVICE = "refresh_rate";
 
     /**
      * Use with {@link #getSystemService(String)} to retrieve a

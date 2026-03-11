@@ -123,6 +123,8 @@ public class DisplayModeDirector {
     private static final int MSG_REFRESH_RATE_IN_HBM_SUNLIGHT_CHANGED = 7;
     private static final int MSG_REFRESH_RATE_IN_HBM_HDR_CHANGED = 8;
     private static final int MSG_SWITCH_USER = 9;
+    private static final int MSG_TEMPORARY_REFRESH_RATE_RANGE_CHANGED = 10;
+    private static final int MSG_EXTREME_REFRESH_RATE_CHANGED = 11;
 
     private final Object mLock = new Object();
     private final Context mContext;
@@ -179,6 +181,15 @@ public class DisplayModeDirector {
      */
     @DisplayManager.SwitchingType
     private int mModeSwitchingType = DisplayManager.SWITCHING_TYPE_WITHIN_GROUPS;
+
+    @GuardedBy("mLock")
+    private boolean mExtremeRefreshRateEnabled;
+    @GuardedBy("mLock")
+    private boolean mHasTemporaryRefreshRateOverride;
+    @GuardedBy("mLock")
+    private float mTemporaryMinRefreshRate;
+    @GuardedBy("mLock")
+    private float mTemporaryMaxRefreshRate;
 
     private final boolean mIsBackUpSmoothDisplayAndForcePeakRefreshRateEnabled;
 
@@ -524,6 +535,44 @@ public class DisplayModeDirector {
     }
 
     /**
+     * Enables or disables extreme refresh rate mode.
+     */
+    public void setExtremeRefreshRateEnabled(boolean enabled) {
+        synchronized (mLock) {
+            if (mExtremeRefreshRateEnabled == enabled) {
+                return;
+            }
+            mExtremeRefreshRateEnabled = enabled;
+        }
+        mHandler.obtainMessage(MSG_EXTREME_REFRESH_RATE_CHANGED).sendToTarget();
+    }
+
+    /**
+     * Sets a temporary refresh rate range override.
+     */
+    public void setTemporaryRefreshRateRange(float minRefreshRate, float maxRefreshRate) {
+        synchronized (mLock) {
+            mTemporaryMinRefreshRate = minRefreshRate;
+            mTemporaryMaxRefreshRate = maxRefreshRate;
+            mHasTemporaryRefreshRateOverride = true;
+        }
+        mHandler.obtainMessage(MSG_TEMPORARY_REFRESH_RATE_RANGE_CHANGED).sendToTarget();
+    }
+
+    /**
+     * Clears any temporary refresh rate range override.
+     */
+    public void clearTemporaryRefreshRateRange() {
+        synchronized (mLock) {
+            if (!mHasTemporaryRefreshRateOverride) {
+                return;
+            }
+            mHasTemporaryRefreshRateOverride = false;
+        }
+        mHandler.obtainMessage(MSG_TEMPORARY_REFRESH_RATE_RANGE_CHANGED).sendToTarget();
+    }
+
+    /**
      * Retrieve the Vote for the given display and priority. Intended only for testing purposes.
      *
      * @param displayId the display to query for
@@ -587,6 +636,9 @@ public class DisplayModeDirector {
             }
             pw.println("  mModeSwitchingType: " + switchingTypeToString(mModeSwitchingType));
             pw.println("  mAlwaysRespectAppRequest: " + mAlwaysRespectAppRequest);
+            pw.println("  mExtremeRefreshRateEnabled: " + mExtremeRefreshRateEnabled);
+            pw.println("  mTemporaryRefreshRateOverride: " + mHasTemporaryRefreshRateOverride
+                    + " [" + mTemporaryMinRefreshRate + ", " + mTemporaryMaxRefreshRate + "]");
             mSettingsObserver.dumpLocked(pw);
             mAppRequestObserver.dumpLocked(pw);
             mBrightnessObserver.dumpLocked(pw);
@@ -601,6 +653,9 @@ public class DisplayModeDirector {
     @GuardedBy("mLock")
     private float getMaxRefreshRateLocked(int displayId) {
         Display.Mode[] modes = mSupportedModesByDisplay.get(displayId);
+        if (modes == null || modes.length == 0) {
+            return 0f;
+        }
         float maxRefreshRate = 0f;
         for (Display.Mode mode : modes) {
             if (mode.getRefreshRate() > maxRefreshRate) {
@@ -608,6 +663,64 @@ public class DisplayModeDirector {
             }
         }
         return maxRefreshRate;
+    }
+
+    @GuardedBy("mLock")
+    private float getMinRefreshRateLocked(int displayId) {
+        Display.Mode[] modes = mSupportedModesByDisplay.get(displayId);
+        if (modes == null || modes.length == 0) {
+            return 0f;
+        }
+        float minRefreshRate = Float.POSITIVE_INFINITY;
+        for (Display.Mode mode : modes) {
+            if (mode.getRefreshRate() < minRefreshRate) {
+                minRefreshRate = mode.getRefreshRate();
+            }
+        }
+        return minRefreshRate == Float.POSITIVE_INFINITY ? 0f : minRefreshRate;
+    }
+
+    @GuardedBy("mLock")
+    private void updateExtremeRefreshRateLocked() {
+        if (!mExtremeRefreshRateEnabled) {
+            mVotesStorage.removeAllVotesForPriority(Vote.PRIORITY_EXTREME_REFRESH_RATE);
+            return;
+        }
+        for (int i = 0; i < mSupportedModesByDisplay.size(); i++) {
+            int displayId = mSupportedModesByDisplay.keyAt(i);
+            float maxRefreshRate = getMaxRefreshRateLocked(displayId);
+            if (maxRefreshRate > 0f) {
+                mVotesStorage.updateVote(displayId, Vote.PRIORITY_EXTREME_REFRESH_RATE,
+                        Vote.forPhysicalRefreshRates(maxRefreshRate, maxRefreshRate));
+            }
+        }
+    }
+
+    @GuardedBy("mLock")
+    private void updateTemporaryRefreshRateLocked() {
+        if (!mHasTemporaryRefreshRateOverride) {
+            mVotesStorage.removeAllVotesForPriority(Vote.PRIORITY_TEMPORARY_REFRESH_RATE);
+            return;
+        }
+        for (int i = 0; i < mSupportedModesByDisplay.size(); i++) {
+            int displayId = mSupportedModesByDisplay.keyAt(i);
+            float minSupported = getMinRefreshRateLocked(displayId);
+            float maxSupported = getMaxRefreshRateLocked(displayId);
+            if (maxSupported <= 0f) {
+                continue;
+            }
+            float min = mTemporaryMinRefreshRate > 0f
+                    ? Math.max(mTemporaryMinRefreshRate, minSupported)
+                    : 0f;
+            float max = mTemporaryMaxRefreshRate > 0f
+                    ? Math.min(mTemporaryMaxRefreshRate, maxSupported)
+                    : maxSupported;
+            if (max < min) {
+                min = max;
+            }
+            mVotesStorage.updateVote(displayId, Vote.PRIORITY_TEMPORARY_REFRESH_RATE,
+                    Vote.forPhysicalRefreshRates(min, max));
+        }
     }
 
     @GuardedBy("mLock")
@@ -802,6 +915,21 @@ public class DisplayModeDirector {
                         mSettingsObserver.updateRefreshRateSettingLocked();
                         mSettingsObserver.updateModeSwitchingTypeSettingLocked();
                     }
+                    break;
+                }
+
+                case MSG_TEMPORARY_REFRESH_RATE_RANGE_CHANGED: {
+                    synchronized (mLock) {
+                        updateTemporaryRefreshRateLocked();
+                    }
+                    break;
+                }
+
+                case MSG_EXTREME_REFRESH_RATE_CHANGED: {
+                    synchronized (mLock) {
+                        updateExtremeRefreshRateLocked();
+                    }
+                    break;
                 }
             }
         }
@@ -1504,6 +1632,8 @@ public class DisplayModeDirector {
                 mSettingsObserver.removeRefreshRateSetting(displayId);
                 mHasArrSupport.delete(displayId);
             }
+            mVotesStorage.updateVote(displayId, Vote.PRIORITY_TEMPORARY_REFRESH_RATE, null);
+            mVotesStorage.updateVote(displayId, Vote.PRIORITY_EXTREME_REFRESH_RATE, null);
             updateLayoutLimitedFrameRate(displayId, null);
             removeUserSettingDisplayPreferredSize(displayId);
             removeDisplaysPeakRefreshRateAndResolution(displayId);
@@ -1716,6 +1846,12 @@ public class DisplayModeDirector {
                 if (changed) {
                     notifyDesiredDisplayModeSpecsChangedLocked();
                     mSettingsObserver.updateRefreshRateSettingLocked(displayId);
+                    if (mExtremeRefreshRateEnabled) {
+                        updateExtremeRefreshRateLocked();
+                    }
+                    if (mHasTemporaryRefreshRateOverride) {
+                        updateTemporaryRefreshRateLocked();
+                    }
                 }
             }
         }

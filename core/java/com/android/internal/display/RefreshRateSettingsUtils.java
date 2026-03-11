@@ -20,8 +20,16 @@ import static android.hardware.display.DisplayManager.DISPLAY_CATEGORY_ALL_INCLU
 
 import android.content.Context;
 import android.hardware.display.DisplayManager;
+import android.text.TextUtils;
+import android.util.ArrayMap;
 import android.util.Log;
 import android.view.Display;
+import android.view.SurfaceControl;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Constants and utility methods for refresh rate settings.
@@ -110,5 +118,73 @@ public class RefreshRateSettingsUtils {
             }
         }
         return maxRefreshRate;
+    }
+
+    /**
+     * Parses per-app refresh rate settings from storage.
+     *
+     * Format: {@code package=min:max,package2=min:max}
+     */
+    public static Map<String, SurfaceControl.RefreshRateRange> parsePerAppRefreshRateConfig(
+            String value) {
+        Map<String, SurfaceControl.RefreshRateRange> result = new ArrayMap<>();
+        if (TextUtils.isEmpty(value)) {
+            return result;
+        }
+        String[] entries = value.split(",");
+        for (String entry : entries) {
+            if (TextUtils.isEmpty(entry)) {
+                continue;
+            }
+            String[] parts = entry.split("=");
+            if (parts.length != 2 || TextUtils.isEmpty(parts[0])) {
+                continue;
+            }
+            String packageName = parts[0].trim();
+            String[] rangeParts = parts[1].split(":");
+            if (rangeParts.length != 2) {
+                continue;
+            }
+            try {
+                float min = Float.parseFloat(rangeParts[0].trim());
+                float max = Float.parseFloat(rangeParts[1].trim());
+                if (min <= 0f && max <= 0f) {
+                    continue;
+                }
+                result.put(packageName, new SurfaceControl.RefreshRateRange(min, max));
+            } catch (NumberFormatException e) {
+                // Skip invalid entries.
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Builds per-app refresh rate settings for storage.
+     */
+    public static String buildPerAppRefreshRateConfig(
+            Map<String, SurfaceControl.RefreshRateRange> values) {
+        if (values == null || values.isEmpty()) {
+            return "";
+        }
+        List<String> keys = new ArrayList<>(values.keySet());
+        Collections.sort(keys);
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < keys.size(); i++) {
+            String packageName = keys.get(i);
+            SurfaceControl.RefreshRateRange range = values.get(packageName);
+            if (range == null) {
+                continue;
+            }
+            if (builder.length() > 0) {
+                builder.append(",");
+            }
+            builder.append(packageName)
+                    .append("=")
+                    .append(Float.toString(range.min))
+                    .append(":")
+                    .append(Float.toString(range.max));
+        }
+        return builder.toString();
     }
 }

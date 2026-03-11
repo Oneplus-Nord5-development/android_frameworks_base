@@ -122,6 +122,7 @@ import android.hardware.camera2.CameraManager;
 import android.hardware.devicestate.DeviceStateManager;
 import android.hardware.display.ColorDisplayManager;
 import android.hardware.display.DisplayManager;
+import android.hardware.display.RefreshRateManager;
 import android.hardware.face.FaceManager;
 import android.hardware.face.IFaceService;
 import android.hardware.fingerprint.FingerprintManager;
@@ -604,6 +605,13 @@ public final class SystemServiceRegistry {
             @Override
             public DisplayManager createService(ContextImpl ctx) {
                 return new DisplayManager(ctx.getOuterContext());
+            }});
+
+        registerService(Context.REFRESH_RATE_SERVICE, RefreshRateManager.class,
+                new CachedServiceFetcher<RefreshRateManager>() {
+            @Override
+            public RefreshRateManager createService(ContextImpl ctx) {
+                return RefreshRateManager.getInstance(ctx.getOuterContext());
             }});
 
         registerService(Context.COLOR_DISPLAY_SERVICE, ColorDisplayManager.class,

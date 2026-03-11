@@ -5367,6 +5367,25 @@ public final class Settings {
         public static final String PEAK_REFRESH_RATE = "peak_refresh_rate";
 
         /**
+         * Per-app refresh rate configuration stored as a string. Each entry is formatted as
+         * {@code packageName=min:max} and entries are separated by commas. A value of 0 means
+         * "unset" for that bound.
+         *
+         * @hide
+         */
+        @Readable
+        public static final String PER_APP_REFRESH_RATE_CONFIG = "per_app_refresh_rate_config";
+
+        /**
+         * Whether extreme refresh rate mode is enabled. When enabled, the display is forced to the
+         * highest supported refresh rate.
+         *
+         * @hide
+         */
+        @Readable
+        public static final String EXTREME_REFRESH_RATE = "extreme_refresh_rate";
+
+        /**
          * Control lock behavior on fold
          *
          * If this isn't set, the system falls back to a device specific default.

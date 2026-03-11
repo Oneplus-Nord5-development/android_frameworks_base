@@ -147,9 +147,15 @@ interface Vote {
     // set to a high priority.
     int PRIORITY_PROXIMITY = 22;
 
+    // Temporary system override for refresh rate range.
+    int PRIORITY_TEMPORARY_REFRESH_RATE = 23;
+
+    // Force display to run at the highest supported refresh rate.
+    int PRIORITY_EXTREME_REFRESH_RATE = 24;
+
     // The Under-Display Fingerprint Sensor (UDFPS) needs the refresh rate to be locked in order
     // to function, so this needs to be the highest priority of all votes.
-    int PRIORITY_UDFPS = 23;
+    int PRIORITY_UDFPS = 25;
 
     @IntDef(prefix = { "PRIORITY_" }, value = {
             PRIORITY_DEFAULT_RENDER_FRAME_RATE,
@@ -175,6 +181,8 @@ interface Vote {
             PRIORITY_FLICKER_REFRESH_RATE_SWITCH,
             PRIORITY_SKIN_TEMPERATURE,
             PRIORITY_PROXIMITY,
+            PRIORITY_TEMPORARY_REFRESH_RATE,
+            PRIORITY_EXTREME_REFRESH_RATE,
             PRIORITY_UDFPS
     })
     @Retention(RetentionPolicy.SOURCE)
@@ -284,6 +292,10 @@ interface Vote {
                 return "PRIORITY_SKIN_TEMPERATURE";
             case PRIORITY_UDFPS:
                 return "PRIORITY_UDFPS";
+            case PRIORITY_TEMPORARY_REFRESH_RATE:
+                return "PRIORITY_TEMPORARY_REFRESH_RATE";
+            case PRIORITY_EXTREME_REFRESH_RATE:
+                return "PRIORITY_EXTREME_REFRESH_RATE";
             case PRIORITY_USER_SETTING_MIN_RENDER_FRAME_RATE:
                 return "PRIORITY_USER_SETTING_MIN_RENDER_FRAME_RATE";
             case PRIORITY_USER_SETTING_DISPLAY_PREFERRED_SIZE:

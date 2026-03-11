@@ -6868,6 +6868,16 @@
     <permission android:name="android.permission.MODIFY_REFRESH_RATE_SWITCHING_TYPE"
                 android:protectionLevel="signature" />
 
+    <!--
+    @SystemApi
+    @FlaggedApi(com.android.server.display.feature.flags.Flags.FLAG_REFRESH_RATE_MANAGER_API)
+    Allows an application to manage display refresh rate policies and overrides.
+    @hide
+    -->
+    <permission android:name="android.permission.MANAGE_REFRESH_RATE"
+                android:protectionLevel="signature|privileged|development"
+                android:featureFlag="com.android.server.display.feature.flags.refresh_rate_manager_api" />
+
     <!-- Allows an application to modify the user preferred display mode.
          @hide
          @TestApi -->

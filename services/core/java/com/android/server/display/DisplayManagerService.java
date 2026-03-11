@@ -6129,6 +6129,21 @@ public final class DisplayManagerService extends SystemService {
         }
 
         @Override
+        public void setExtremeRefreshRateEnabled(boolean enabled) {
+            mDisplayModeDirector.setExtremeRefreshRateEnabled(enabled);
+        }
+
+        @Override
+        public void setTemporaryRefreshRateRange(float minRefreshRate, float maxRefreshRate) {
+            mDisplayModeDirector.setTemporaryRefreshRateRange(minRefreshRate, maxRefreshRate);
+        }
+
+        @Override
+        public void clearTemporaryRefreshRateRange() {
+            mDisplayModeDirector.clearTemporaryRefreshRateRange();
+        }
+
+        @Override
         public RefreshRateRange getRefreshRateForDisplayAndSensor(int displayId, String sensorName,
                 String sensorType) {
             final SensorManager sensorManager;

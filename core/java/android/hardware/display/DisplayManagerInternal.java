@@ -392,6 +392,27 @@ public abstract class DisplayManagerInternal {
     public abstract int getRefreshRateSwitchingType();
 
     /**
+     * Enables or disables extreme refresh rate mode.
+     *
+     * @hide
+     */
+    public abstract void setExtremeRefreshRateEnabled(boolean enabled);
+
+    /**
+     * Sets a temporary refresh rate range override.
+     *
+     * @hide
+     */
+    public abstract void setTemporaryRefreshRateRange(float minRefreshRate, float maxRefreshRate);
+
+    /**
+     * Clears any temporary refresh rate range override.
+     *
+     * @hide
+     */
+    public abstract void clearTemporaryRefreshRateRange();
+
+    /**
      * TODO: b/191384041 - Replace this with getRefreshRateLimitations()
      * Return the refresh rate restriction for the specified display and sensor pairing. If the
      * specified sensor is identified as an associated sensor in the specified display's

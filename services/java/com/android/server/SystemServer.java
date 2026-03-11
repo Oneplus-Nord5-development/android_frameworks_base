@@ -174,6 +174,7 @@ import com.android.server.criticalevents.CriticalEventLog;
 import com.android.server.devicepolicy.DevicePolicyManagerService;
 import com.android.server.devicestate.DeviceStateManagerService;
 import com.android.server.display.DisplayManagerService;
+import com.android.server.display.DisplayRefreshRateController;
 import com.android.server.display.color.ColorDisplayService;
 import com.android.server.dreams.DreamManagerService;
 import com.android.server.emergency.EmergencyAffordanceService;
@@ -1341,6 +1342,10 @@ public final class SystemServer implements Dumpable {
         // starts up.
         t.traceBegin("StartDisplayManager");
         mDisplayManagerService = mSystemServiceManager.startService(DisplayManagerService.class);
+        t.traceEnd();
+
+        t.traceBegin("StartDisplayRefreshRateController");
+        mSystemServiceManager.startService(DisplayRefreshRateController.class);
         t.traceEnd();
 
         // We need the default display before we can initialize the package manager.
