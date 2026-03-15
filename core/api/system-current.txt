@@ -589,7 +589,6 @@ package android {
     field public static final int Theme_Leanback_FormWizard = 16974544; // 0x10302d0
   }
 
-}
 
 package android.accessibilityservice {
 
