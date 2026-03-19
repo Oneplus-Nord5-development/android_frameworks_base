@@ -43,8 +43,6 @@ import com.android.compose.animation.scene.ContentScope
 import com.android.compose.modifiers.padding
 import com.android.systemui.common.ui.compose.PagerDots
 import com.android.systemui.compose.modifiers.sysuiResTag
-import com.android.systemui.development.ui.compose.BuildNumber
-import com.android.systemui.development.ui.viewmodel.BuildNumberViewModel
 import com.android.systemui.lifecycle.rememberViewModel
 import com.android.systemui.qs.panels.dagger.PaginatedBaseLayoutType
 import com.android.systemui.qs.panels.ui.compose.Dimensions.FooterHeight
@@ -149,7 +147,6 @@ constructor(
                 }
             }
             FooterBar(
-                buildNumberViewModelFactory = viewModel.buildNumberViewModelFactory,
                 pagerState = pagerState,
                 showArrowsInPager = viewModel.showArrowsInPagerDots,
                 editButtonViewModelFactory = viewModel.editModeButtonViewModelFactory,
@@ -166,7 +163,6 @@ private object Dimensions {
 
 @Composable
 private fun FooterBar(
-    buildNumberViewModelFactory: BuildNumberViewModel.Factory,
     pagerState: PagerState,
     showArrowsInPager: Boolean,
     editButtonViewModelFactory: EditModeButtonViewModel.Factory,
@@ -191,7 +187,6 @@ private fun FooterBar(
         horizontalArrangement = spacedBy(8.dp),
     ) {
         Row(Modifier.weight(1f)) {
-            BuildNumber(viewModelFactory = buildNumberViewModelFactory)
             Spacer(modifier = Modifier.weight(1f))
         }
         PagerDots(
