@@ -2332,6 +2332,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                 takeScreenshot(SCREENSHOT_KEY_OTHER);
                 notifyKeyGestureCompleted(event, KeyGestureEvent.KEY_GESTURE_TYPE_TAKE_SCREENSHOT);
                 break;
+            case RINGER_MODES:
+                toggleRingerModes();
+                break;
             default:
                 break;
         }
@@ -7842,5 +7845,25 @@ public class PhoneWindowManager implements WindowManagerPolicy {
 
     private void takeScreenshot(int source) {
         mScreenshotHelper.takeScreenshot(source, mHandler, null);
+    }
+
+    private void toggleRingerModes() {
+    AudioManager am = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
+
+        switch (am.getRingerMode()) {
+            case AudioManager.RINGER_MODE_NORMAL:
+                if (mVibrator.hasVibrator()) {
+                    am.setRingerMode(AudioManager.RINGER_MODE_VIBRATE);
+                }
+                break;
+            case AudioManager.RINGER_MODE_VIBRATE:
+                am.setRingerMode(AudioManager.RINGER_MODE_NORMAL);
+                NotificationManager nm = getNotificationService();
+                nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY);
+                break;
+            case AudioManager.RINGER_MODE_SILENT:
+                am.setRingerMode(AudioManager.RINGER_MODE_NORMAL);
+                break;
+        }
     }
 }
