@@ -67,12 +67,14 @@ import android.util.SparseArray;
 import android.view.Display;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.app.AppLockUtils;
 import com.android.internal.app.BlockedAppActivity;
 import com.android.internal.app.HarmfulAppWarningActivity;
 import com.android.internal.app.SuspendedAppActivity;
 import com.android.internal.app.UnlaunchableAppActivity;
 import com.android.server.LocalServices;
 import com.android.server.am.ActivityManagerService;
+import com.android.server.applock.AppLockManagerInternal;
 import com.android.server.wm.ActivityInterceptorCallback.ActivityInterceptResult;
 
 /**
@@ -266,6 +268,10 @@ class ActivityStartInterceptor {
 
         if (interceptAutomatedPackageIfNeeded()) {
             // If the app is currently being automated, we should warn the user about it.
+            return true;
+        }
+
+        if (interceptAppLockIfNeeded()) {
             return true;
         }
 
@@ -597,6 +603,39 @@ class ActivityStartInterceptor {
         return true;
     }
 
+    private boolean interceptAppLockIfNeeded() {
+        if (mAInfo == null || mAInfo.packageName == null) {
+            return false;
+        }
+        if (AppLockUtils.SETTINGS_PACKAGE.equals(mAInfo.packageName)
+                && AppLockUtils.CONFIRM_DEVICE_CREDENTIAL_ACTIVITY_CLASS.equals(mAInfo.name)) {
+            return false;
+        }
+
+        final AppLockManagerInternal appLock =
+                LocalServices.getService(AppLockManagerInternal.class);
+        if (appLock == null || !appLock.shouldShowAppLockForPackage(mAInfo.packageName, mUserId)) {
+            return false;
+        }
+
+        final IntentSender target = createIntentSenderForOriginalIntent(mCallingUid,
+                FLAG_CANCEL_CURRENT | FLAG_ONE_SHOT | FLAG_IMMUTABLE);
+        final Intent intent = appLock.createConfirmAppLockIntentIfNeeded(mAInfo.packageName,
+                mUserId, target);
+        if (intent == null) {
+            return false;
+        }
+
+        mIntent = intent;
+        mCallingPid = mRealCallingPid;
+        mCallingUid = mRealCallingUid;
+        mResolvedType = null;
+        mRInfo = mSupervisor.resolveIntent(mIntent, mResolvedType, mUserId, 0,
+                mRealCallingUid, mRealCallingPid);
+        mAInfo = mSupervisor.resolveActivity(mIntent, mRInfo, mStartFlags, null /*profilerInfo*/);
+        return true;
+    }
+
     private void normalizeHomeIntent() {
         Slog.w(TAG, "The home Intent is not correctly formatted");
         if (mIntent.getCategories().size() > 1) {
@@ -660,6 +699,11 @@ class ActivityStartInterceptor {
      * Called when an activity is successfully launched.
      */
     void onActivityLaunched(TaskInfo taskInfo, ActivityRecord r) {
+        final AppLockManagerInternal appLock =
+                LocalServices.getService(AppLockManagerInternal.class);
+        if (appLock != null) {
+            appLock.onActivityLaunched(taskInfo, r.info);
+        }
         final SparseArray<ActivityInterceptorCallback> callbacks =
                 mService.getActivityInterceptorCallbacks();
         final ActivityInterceptorCallback.ActivityInterceptorInfo info = getInterceptorInfo(() -> {

@@ -142,6 +142,7 @@ import com.android.server.attention.AttentionManagerService;
 import com.android.server.audio.AudioService;
 import com.android.server.autofill.AutofillManagerService;
 import com.android.server.backup.BackupManagerService;
+import com.android.server.applock.AppLockManagerService;
 import com.android.server.biometrics.AuthService;
 import com.android.server.biometrics.BiometricService;
 import com.android.server.biometrics.sensors.face.FaceService;
@@ -2803,6 +2804,14 @@ public final class SystemServer implements Dumpable {
 
                 t.traceBegin("StartAuthenticationPolicyService");
                 mSystemServiceManager.startService(AuthenticationPolicyService.class);
+                t.traceEnd();
+
+                t.traceBegin("StartAppLockManagerService");
+                try {
+                    mSystemServiceManager.startService(AppLockManagerService.class);
+                } catch (Throwable e) {
+                    reportWtf("starting AppLockManagerService", e);
+                }
                 t.traceEnd();
             }
 

@@ -8,4 +8,9 @@
     <!-- Data disabled icon -->
     <string name="data_disabled_icon_title">Data disabled icon</string>
 
+    <!-- App Lock -->
+    <string name="lineage_app_lock_label">App Lock</string>
+    <string name="lineage_app_lock_prompt_title">Unlock <xliff:g id="app_name">%1$s</xliff:g></string>
+    <string name="lineage_app_lock_prompt_message">Confirm it\'s you to open <xliff:g id="app_name">%1$s</xliff:g>.</string>
+
 </resources>

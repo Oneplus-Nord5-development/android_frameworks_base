@@ -165,6 +165,7 @@ import com.android.server.LocalServices;
 import com.android.server.am.ActivityManagerService;
 import com.android.server.am.HostingRecord;
 import com.android.server.am.UserState;
+import com.android.server.applock.AppLockManagerInternal;
 import com.android.server.companion.virtual.VirtualDeviceManagerInternal;
 import com.android.server.pm.SaferIntentUtils;
 import com.android.server.utils.Slogf;
@@ -3014,6 +3015,16 @@ public class ActivityTaskSupervisor implements RecentTasks.Callbacks {
                 // the intercepting.
                 if (!mService.mAmInternal.shouldConfirmCredentials(task.mUserId)
                         && task.getRootActivity() != null) {
+                    final AppLockManagerInternal appLock =
+                            LocalServices.getService(AppLockManagerInternal.class);
+                    if (appLock != null && appLock.startConfirmAppLockForTask(
+                            task.getTaskInfo())) {
+                        // As it doesn't go to ActivityStarter.executeRequest() path, we need to
+                        // resume app switching here also.
+                        mService.resumeAppSwitches();
+                        return ActivityManager.START_TASK_TO_FRONT;
+                    }
+
                     final ActivityRecord targetActivity = task.getTopNonFinishingActivity();
 
                     mRootWindowContainer.startPowerModeLaunchIfNeeded(

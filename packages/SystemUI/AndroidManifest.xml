@@ -860,6 +860,16 @@
         </activity>
 
         <activity
+            android:name=".keyguard.AppLockActivity"
+            android:label="@string/lineage_app_lock_label"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:stateNotNeeded="true"
+            android:resumeWhilePausing="true"
+            android:launchMode="singleTop"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen" />
+
+        <activity
             android:name=".user.CreateUserActivity"
             android:excludeFromRecents="true"
             android:exported="false"
