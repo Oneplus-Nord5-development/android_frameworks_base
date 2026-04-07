@@ -107,21 +107,15 @@ public class BiometricStateCallback<T extends BiometricServiceProvider<P>,
             mBiometricState = STATE_IDLE;
         }
 
-        Slog.d(TAG, "State updated from " + previousBiometricState + " to " + mBiometricState
-                + ", client " + client);
         notifyBiometricStateListeners(mBiometricState);
     }
 
     @Override
     public void onClientFinished(@NonNull BaseClientMonitor client, boolean success) {
         mBiometricState = STATE_IDLE;
-        Slog.d(TAG, "Client finished, state updated to " + mBiometricState + ", client "
-                + client);
-
         if (client instanceof EnrollmentModifier) {
             EnrollmentModifier enrollmentModifier = (EnrollmentModifier) client;
             final boolean enrollmentStateChanged = enrollmentModifier.hasEnrollmentStateChanged();
-            Slog.d(TAG, "Enrollment state changed: " + enrollmentStateChanged);
             if (enrollmentStateChanged) {
                 notifyAllEnrollmentStateChanged(client.getTargetUserId(),
                         client.getSensorId(),

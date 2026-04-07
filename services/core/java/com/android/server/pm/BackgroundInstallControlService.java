@@ -279,7 +279,6 @@ public class BackgroundInstallControlService extends SystemService {
 
         @Override
         public void handleMessage(Message msg) {
-            Slog.d(TAG, "Package event received: " + msg.what);
             switch (msg.what) {
                 case MSG_USAGE_EVENT_RECEIVED:
                     mService.handleUsageEvent(

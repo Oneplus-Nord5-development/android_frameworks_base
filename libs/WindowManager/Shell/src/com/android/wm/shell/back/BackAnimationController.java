@@ -206,7 +206,6 @@ public class BackAnimationController implements RemoteCallable<BackAnimationCont
                             // ignore this due to it may cause focus lost. (alpha = 0)
                             return;
                         }
-                        ProtoLog.i(WM_SHELL_BACK_PREVIEW, "Navigation window gone.");
                         setTriggerBack(false);
                         // Trigger close transition if necessary.
                         mBackTransitionHandler.onAnimationFinished();
@@ -579,8 +578,6 @@ public class BackAnimationController implements RemoteCallable<BackAnimationCont
             }
             onMove(swipeEdge);
         } else if (keyAction == MotionEvent.ACTION_UP || keyAction == MotionEvent.ACTION_CANCEL) {
-            ProtoLog.d(WM_SHELL_BACK_PREVIEW,
-                    "Finishing gesture with event action: %d", keyAction);
             if (keyAction == MotionEvent.ACTION_CANCEL) {
                 setTriggerBack(false);
             }
@@ -668,7 +665,6 @@ public class BackAnimationController implements RemoteCallable<BackAnimationCont
 
     private void onBackNavigationInfoReceived(@Nullable BackNavigationInfo backNavigationInfo,
             @NonNull BackTouchTracker touchTracker) {
-        ProtoLog.d(WM_SHELL_BACK_PREVIEW, "Received backNavigationInfo:%s", backNavigationInfo);
         if (backNavigationInfo == null) {
             ProtoLog.e(WM_SHELL_BACK_PREVIEW, "Received BackNavigationInfo is null.");
             mReceivedNullNavigationInfo = true;
@@ -915,8 +911,6 @@ public class BackAnimationController implements RemoteCallable<BackAnimationCont
             mCurrentTracker.setTriggerBack(false);
         }
         boolean triggerBack = activeTouchTracker.getTriggerBack();
-        ProtoLog.d(WM_SHELL_BACK_PREVIEW, "onGestureFinished() mTriggerBack == %s", triggerBack);
-
         if (triggerBack) {
             mBackTransitionObserver.update(mBackNavigationInfo != null
                             ? mBackNavigationInfo.getFocusedTaskId()
@@ -956,7 +950,6 @@ public class BackAnimationController implements RemoteCallable<BackAnimationCont
         if (!shouldDispatchToAnimator()
                 || (!hasRequestAnimation && predictiveBackDelayWmTransition())
                 || mShellBackAnimationRegistry.isAnimationCancelledOrNull(backType)) {
-            ProtoLog.d(WM_SHELL_BACK_PREVIEW, "Trigger back without dispatching to animator.");
             invokeOrCancelBack(mCurrentTracker);
             mCurrentTracker.reset();
             return;
@@ -1104,7 +1097,6 @@ public class BackAnimationController implements RemoteCallable<BackAnimationCont
      */
     @VisibleForTesting
     void finishBackNavigation(boolean triggerBack) {
-        ProtoLog.d(WM_SHELL_BACK_PREVIEW, "BackAnimationController: finishBackNavigation()");
         mActiveCallback = null;
         mApps = null;
         mOnBackStartDispatched = false;

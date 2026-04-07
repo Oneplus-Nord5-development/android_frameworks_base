@@ -359,10 +359,6 @@ class DesktopTasksController(
         recentsTransitionHandler.addTransitionStateListener(
             object : RecentsTransitionStateListener {
                 override fun onTransitionStateChanged(@RecentsTransitionState state: Int) {
-                    logV(
-                        "Recents transition state changed: %s",
-                        RecentsTransitionStateListener.stateToString(state),
-                    )
                     recentsTransitionState = state
                 }
             }
@@ -3511,7 +3507,6 @@ class DesktopTasksController(
         transition: IBinder,
         request: TransitionRequestInfo,
     ): WindowContainerTransaction? {
-        logV("handleRequest request=%s", request)
         // First, check if this is a display disconnect request.
         val displayChange = request.displayChange
         if (
@@ -3532,12 +3527,9 @@ class DesktopTasksController(
         ) {
             return handleUserChangeTransitionRequest(transition, request)
         }
-        // Check if we should skip handling this transition
-        var reason = ""
         val triggerTask = request.triggerTask
         // Skipping early if the trigger task is null
         if (triggerTask == null) {
-            logV("skipping handleRequest reason=%s", "triggerTask is null")
             return null
         }
         val recentsAnimationRunning =
@@ -3547,16 +3539,10 @@ class DesktopTasksController(
         val isDragAndDropFullscreenTransition = taskContainsDragAndDropCookie(triggerTask)
         val shouldHandleRequest =
             when {
-                !taskDisplaySupportDesktopMode(triggerTask) -> {
-                    reason = "triggerTask's display doesn't support desktop mode"
-                    false
-                }
+                !taskDisplaySupportDesktopMode(triggerTask) -> false
                 // Handle freeform relaunch during recents animation
                 shouldHandleMidRecentsFreeformLaunch -> true
-                recentsAnimationRunning -> {
-                    reason = "recents animation is running"
-                    false
-                }
+                recentsAnimationRunning -> false
                 // Don't handle request if this was a tear to fullscreen transition.
                 // handleFullscreenTaskLaunch moves fullscreen intents to freeform;
                 // this is an exception to the rule
@@ -3573,33 +3559,20 @@ class DesktopTasksController(
                 // Only handle open or to front transitions
                 request.type != TRANSIT_OPEN &&
                     request.type != TRANSIT_TO_FRONT &&
-                    request.type != TRANSIT_START_LOCK_TASK_MODE -> {
-                    reason = "transition type not handled (${request.type})"
-                    false
-                }
+                    request.type != TRANSIT_START_LOCK_TASK_MODE -> false
                 // Home launches are only handled with multiple desktops enabled.
                 triggerTask.activityType == ACTIVITY_TYPE_HOME &&
-                    !DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue -> {
-                    reason = "ACTIVITY_TYPE_HOME not handled"
-                    false
-                }
+                    !DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue -> false
                 // Only handle standard and home tasks types.
                 triggerTask.activityType != ACTIVITY_TYPE_STANDARD &&
-                    triggerTask.activityType != ACTIVITY_TYPE_HOME -> {
-                    reason = "activityType not handled (${triggerTask.activityType})"
-                    false
-                }
+                    triggerTask.activityType != ACTIVITY_TYPE_HOME -> false
                 // Only handle fullscreen or freeform tasks
-                !triggerTask.isFullscreen && !triggerTask.isFreeform -> {
-                    reason = "windowingMode not handled (${triggerTask.windowingMode})"
-                    false
-                }
+                !triggerTask.isFullscreen && !triggerTask.isFreeform -> false
                 // Otherwise process it
                 else -> true
             }
 
         if (!shouldHandleRequest) {
-            logV("skipping handleRequest reason=%s", reason)
             return null
         }
 

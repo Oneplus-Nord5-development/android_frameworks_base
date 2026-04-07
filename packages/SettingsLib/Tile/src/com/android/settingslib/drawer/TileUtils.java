@@ -379,9 +379,6 @@ public class TileUtils {
         // the current user.
         if (user.getIdentifier() != ActivityManager.getCurrentUser()
                 && Tile.isPrimaryProfileOnly(componentInfo.metaData)) {
-            Log.w(LOG_TAG, "Found " + componentInfo.name + " for intent "
-                    + intent + " is primary profile only, skip loading tile for uid "
-                    + user.getIdentifier());
             return;
         }
 
@@ -389,9 +386,6 @@ public class TileUtils {
         // Load category
         if ((metaData == null || !metaData.containsKey(EXTRA_CATEGORY_KEY))
                 && categoryKey == null) {
-            Log.w(LOG_TAG, "Found " + componentInfo.name + " for intent "
-                    + intent + " missing metadata "
-                    + (metaData == null ? "" : EXTRA_CATEGORY_KEY));
             return;
         } else {
             categoryKey = metaData.getString(EXTRA_CATEGORY_KEY);

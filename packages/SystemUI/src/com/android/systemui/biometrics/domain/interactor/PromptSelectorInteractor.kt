@@ -21,7 +21,6 @@ import android.hardware.biometrics.BiometricManager
 import android.hardware.biometrics.Flags
 import android.hardware.biometrics.IIdentityCheckStateListener
 import android.hardware.biometrics.PromptInfo
-import android.util.Log
 import com.android.internal.widget.LockPatternUtils
 import com.android.systemui.biometrics.BiometricPromptLogger
 import com.android.systemui.biometrics.Utils
@@ -218,7 +217,6 @@ constructor(
     override val watchRangingState: Flow<WatchRangingState> =
         callbackFlow {
                 val updateWatchRangingState = { state: Int ->
-                    Log.d(TAG, "authenticationState updated: $state")
                     when (state) {
                         WatchRangingState.WATCH_RANGING_STARTED.ordinal -> {
                             logEvent(

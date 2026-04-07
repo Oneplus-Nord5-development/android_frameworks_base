@@ -289,9 +289,6 @@ class BackNavigationController {
             mNavigationMonitor.startMonitor(window, navigationObserver);
 
             int requestOverride = callbackInfo.getOverrideBehavior();
-            ProtoLog.d(WM_DEBUG_BACK_PREVIEW, "startBackNavigation currentTask=%s, "
-                            + "topRunningActivity=%s, callbackInfo=%s, currentFocus=%s",
-                    currentTask, currentActivity, callbackInfo, window);
             if (requestOverride == OVERRIDE_FINISH_AND_REMOVE_TASK) {
                 final ActivityRecord rootR = currentTask != null ? currentTask.getRootActivity()
                         : null;
@@ -2256,9 +2253,6 @@ class BackNavigationController {
         if (result.containsKey(BackNavigationInfo.KEY_NAVIGATION_FINISHED)) {
             final boolean triggerBack = result.getBoolean(
                     BackNavigationInfo.KEY_NAVIGATION_FINISHED);
-            ProtoLog.d(WM_DEBUG_BACK_PREVIEW, "onBackNavigationDone backType=%s, "
-                    + "triggerBack=%b", backType, triggerBack);
-
             synchronized (mWindowManagerService.mGlobalLock) {
                 mNavigationMonitor.stopMonitorForRemote();
                 mBackAnimationInProgress = false;

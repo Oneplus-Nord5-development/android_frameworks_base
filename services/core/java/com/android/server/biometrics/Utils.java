@@ -575,7 +575,6 @@ public class Utils {
         final boolean isEncrypted = containsFlag(strongAuth, STRONG_AUTH_REQUIRED_AFTER_BOOT);
         final boolean isLockDown = containsFlag(strongAuth, STRONG_AUTH_REQUIRED_AFTER_DPM_LOCK_NOW)
                 || containsFlag(strongAuth, STRONG_AUTH_REQUIRED_AFTER_USER_LOCKDOWN);
-        Slog.d(TAG, "isEncrypted: " + isEncrypted + " isLockdown: " + isLockDown);
         return isEncrypted || isLockDown;
     }
 

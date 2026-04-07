@@ -290,17 +290,12 @@ class DesktopMixedTransitionHandler(
     ): Boolean {
         // This might be a core based transition that might cause a desk switch.
         return animateSwitchDeskTransitionIfNeeded(
-                transition,
-                info,
-                startTransaction,
-                finishTransaction,
-                finishCallback,
-            )
-            .also { animated ->
-                if (!animated) {
-                    logV("No pending desktop transition")
-                }
-            }
+            transition,
+            info,
+            startTransaction,
+            finishTransaction,
+            finishCallback,
+        )
     }
 
     private fun animateCloseTransition(

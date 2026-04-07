@@ -231,7 +231,6 @@ public class SplitscreenEventLogger {
             @SplitPosition int mainStagePosition, int mainStageUid,
             @SplitPosition int sideStagePosition, int sideStageUid, boolean isLandscape) {
         if (mLoggerSessionId == null) {
-            ProtoLog.d(WM_SHELL_SPLIT_SCREEN, "logExit: no-op, mLoggerSessionId is null");
             // Ignore changes until we've started logging the session
             return;
         }

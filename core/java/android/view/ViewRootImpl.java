@@ -2296,8 +2296,6 @@ public final class ViewRootImpl implements ViewParent,
             final boolean currentVisible = getHostVisibility() == View.VISIBLE;
             // Root view only cares about whether it is visible or not.
             if (previousVisible != currentVisible) {
-                Log.d(mTag, "visibilityChanged oldVisibility=" + previousVisible + " newVisibility="
-                        + currentVisible);
                 mAppVisibilityChanged = true;
                 scheduleTraversals();
             }

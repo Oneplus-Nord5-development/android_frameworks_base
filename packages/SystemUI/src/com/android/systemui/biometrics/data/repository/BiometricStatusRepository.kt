@@ -34,7 +34,6 @@ import android.hardware.biometrics.events.AuthenticationStoppedInfo
 import android.hardware.biometrics.events.AuthenticationSucceededInfo
 import android.hardware.face.FaceManager
 import android.hardware.fingerprint.FingerprintManager
-import android.util.Log
 import com.android.systemui.biometrics.shared.model.AuthenticationReason
 import com.android.systemui.biometrics.shared.model.AuthenticationReason.SettingsOperations
 import com.android.systemui.biometrics.shared.model.AuthenticationState
@@ -53,7 +52,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.shareIn
 
 /** A repository for the state of biometric authentication. */
@@ -87,7 +85,6 @@ constructor(
     private val authenticationState: Flow<AuthenticationState> =
         callbackFlow {
                 val updateAuthenticationState = { state: AuthenticationState ->
-                    Log.d(TAG, "authenticationState updated: $state")
                     trySendWithFailureLogging(state, TAG, "Error sending AuthenticationState state")
                 }
 
@@ -188,7 +185,6 @@ constructor(
                 it.biometricSourceType == null ||
                     it.biometricSourceType == BiometricSourceType.FINGERPRINT
             }
-            .onEach { Log.d(TAG, "fingerprintAuthenticationState updated: $it") }
 
     private val fingerprintRunningState: Flow<AuthenticationState> =
         fingerprintAuthenticationState
@@ -197,12 +193,10 @@ constructor(
                     it is AuthenticationState.Started ||
                     it is AuthenticationState.Stopped
             }
-            .onEach { Log.d(TAG, "fingerprintRunningState updated: $it") }
 
     override val fingerprintAuthenticationReason: Flow<AuthenticationReason> =
         fingerprintRunningState
             .map { it.requestReason }
-            .onEach { Log.d(TAG, "fingerprintAuthenticationReason updated: $it") }
 
     override val fingerprintAcquiredStatus: Flow<FingerprintAuthenticationStatus> =
         fingerprintAuthenticationState.filterIsInstance<AuthenticationState.Acquired>().map {

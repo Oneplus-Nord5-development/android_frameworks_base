@@ -27,7 +27,6 @@ import android.hardware.biometrics.BiometricManager
 import android.hardware.biometrics.IBiometricEnabledOnKeyguardCallback
 import android.os.UserHandle
 import android.security.Flags.secureLockDevice
-import android.util.Log
 import com.android.internal.widget.LockPatternUtils
 import com.android.systemui.Dumpable
 import com.android.systemui.biometrics.AuthController
@@ -201,7 +200,6 @@ constructor(
         }
 
     init {
-        Log.d(TAG, "Registering StrongAuthTracker")
         lockPatternUtils.registerStrongAuthTracker(strongAuthTracker)
         dumpManager.registerDumpable(this)
         val configFaceAuthSupportedPosture =
@@ -216,7 +214,6 @@ constructor(
                         it == configFaceAuthSupportedPosture
                     }
                 }
-                .onEach { Log.d(TAG, "isFaceAuthSupportedInCurrentPosture value changed to: $it") }
     }
 
     override fun dump(pw: PrintWriter, args: Array<String?>) {
@@ -467,7 +464,6 @@ private class StrongAuthTracker(
         selectedUserId.flatMapLatest { userId ->
             _authFlags
                 .map { AuthenticationFlags(userId, getStrongAuthForUser(userId)) }
-                .onEach { Log.d(TAG, "currentUser authFlags changed, new value: $it") }
                 .onStart { emit(AuthenticationFlags(userId, getStrongAuthForUser(userId))) }
         }
 
@@ -482,9 +478,6 @@ private class StrongAuthTracker(
                 _nonStrongBiometricAllowed
                     .filter { it.first == userId }
                     .map { it.second }
-                    .onEach {
-                        Log.d(TAG, "isNonStrongBiometricAllowed changed for current user: $it")
-                    }
                     .onStart { emit(isNonStrongBiometricAllowedAfterIdleTimeout(userId)) }
             },
             isStrongBiometricAllowed,
@@ -498,13 +491,11 @@ private class StrongAuthTracker(
     override fun onStrongAuthRequiredChanged(userId: Int) {
         val newFlags = getStrongAuthForUser(userId)
         _authFlags.value = AuthenticationFlags(userId, newFlags)
-        Log.d(TAG, "onStrongAuthRequiredChanged for userId: $userId, flag value: $newFlags")
     }
 
     override fun onIsNonStrongBiometricAllowedChanged(userId: Int) {
         val allowed = isNonStrongBiometricAllowedAfterIdleTimeout(userId)
         _nonStrongBiometricAllowed.value = Pair(userId, allowed)
-        Log.d(TAG, "onIsNonStrongBiometricAllowedChanged for userId: $userId, $allowed")
     }
 }
 

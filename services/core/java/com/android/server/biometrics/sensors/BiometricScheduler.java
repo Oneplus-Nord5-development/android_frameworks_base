@@ -155,8 +155,6 @@ public class BiometricScheduler<T, U> {
         @Override
         public void onClientFinished(@NonNull BaseClientMonitor clientMonitor, boolean success) {
             mHandler.post(() -> {
-                Slog.d(TAG, "[Client finished] " + clientMonitor + ", success: " + success);
-
                 // Set mStopUserClient to null when StopUserClient fails. Otherwise it's possible
                 // for that the queue will wait indefinitely until the field is cleared.
                 if (clientMonitor instanceof StopUserClient<?>) {
@@ -185,7 +183,6 @@ public class BiometricScheduler<T, U> {
     private final ClientMonitorCallback mInternalCallback = new ClientMonitorCallback() {
         @Override
         public void onClientStarted(@NonNull BaseClientMonitor clientMonitor) {
-            Slog.d(TAG, "[Started] " + clientMonitor);
         }
 
         @Override
@@ -203,8 +200,6 @@ public class BiometricScheduler<T, U> {
                             + " current: " + mCurrentOperation);
                     return;
                 }
-
-                Slog.d(TAG, "[Finishing] " + clientMonitor + ", success: " + success);
 
                 if (mGestureAvailabilityDispatcher != null) {
                     mGestureAvailabilityDispatcher.markSensorActive(
@@ -304,11 +299,9 @@ public class BiometricScheduler<T, U> {
 
     protected void checkCurrentUserAndStartNextOperation() {
         if (mCurrentOperation != null) {
-            Slog.v(TAG, "Not idle, current operation: " + mCurrentOperation);
             return;
         }
         if (mPendingOperations.isEmpty()) {
-            Slog.d(TAG, "No operations, returning to idle");
             return;
         }
 
@@ -326,21 +319,16 @@ public class BiometricScheduler<T, U> {
             final UserSwitchClientCallback finishedCallback =
                     new UserSwitchClientCallback(startClient);
 
-            Slog.d(TAG, "[Starting User] " + startClient);
             mCurrentOperation = new BiometricSchedulerOperation(
                     startClient, finishedCallback, STATE_STARTED);
             startClient.start(finishedCallback);
         } else if (mUserSwitchProvider != null) {
-            if (mStopUserClient != null) {
-                Slog.d(TAG, "[Waiting for StopUser] " + mStopUserClient);
-            } else {
+            if (mStopUserClient == null) {
                 mStopUserClient = mUserSwitchProvider
                         .getStopUserClient(currentUserId);
                 final UserSwitchClientCallback finishedCallback =
                         new UserSwitchClientCallback(mStopUserClient);
 
-                Slog.d(TAG, "[Stopping User] current: " + currentUserId
-                        + ", next: " + nextUserId + ". " + mStopUserClient);
                 mCurrentOperation = new BiometricSchedulerOperation(
                         mStopUserClient, finishedCallback, STATE_STARTED);
                 mStopUserClient.start(finishedCallback);
@@ -352,21 +340,17 @@ public class BiometricScheduler<T, U> {
 
     protected void startNextOperationIfIdle() {
         if (mCurrentOperation != null) {
-            Slog.v(TAG, "Not idle, current operation: " + mCurrentOperation);
             return;
         }
         if (mPendingOperations.isEmpty()) {
-            Slog.d(TAG, "No operations, returning to idle");
             return;
         }
 
         mCurrentOperation = mPendingOperations.poll();
-        Slog.d(TAG, "[Polled] " + mCurrentOperation);
 
         // If the operation at the front of the queue has been marked for cancellation, send
         // ERROR_CANCELED. No need to start this client.
         if (mCurrentOperation.isMarkedCanceling()) {
-            Slog.d(TAG, "[Now Cancelling] " + mCurrentOperation);
             mCurrentOperation.cancel(mHandler, mInternalCallback);
             // Now we wait for the client to send its FinishCallback, which kicks off the next
             // operation.
@@ -447,9 +431,7 @@ public class BiometricScheduler<T, U> {
             return;
         }
 
-        if (mCurrentOperation.startWithCookie(mInternalCallback, cookie)) {
-            Slog.d(TAG, "[Started] Prepared client: " + mCurrentOperation);
-        } else {
+        if (!mCurrentOperation.startWithCookie(mInternalCallback, cookie)) {
             Slog.e(TAG, "[Unable To Start] Prepared client: " + mCurrentOperation);
             mCurrentOperation = null;
             checkCurrentUserAndStartNextOperation();
@@ -479,14 +461,11 @@ public class BiometricScheduler<T, U> {
         if (clientMonitor.interruptsPrecedingClients()) {
             for (BiometricSchedulerOperation operation : mPendingOperations) {
                 if (operation.markCanceling()) {
-                    Slog.d(TAG, "New client, marking pending op as canceling: " + operation);
                 }
             }
         }
 
         mPendingOperations.add(new BiometricSchedulerOperation(clientMonitor, clientCallback));
-        Slog.d(TAG, "[Added] " + clientMonitor
-                + ", new queue size: " + mPendingOperations.size());
 
         // If the new operation should interrupt preceding clients, and if the current operation is
         // cancellable, start the cancellation process.
@@ -494,7 +473,6 @@ public class BiometricScheduler<T, U> {
                 && mCurrentOperation != null
                 && mCurrentOperation.isInterruptable()
                 && mCurrentOperation.isStarted()) {
-            Slog.d(TAG, "[Cancelling Interruptable]: " + mCurrentOperation);
             mCurrentOperation.cancel(mHandler, mInternalCallback);
         } else {
             checkCurrentUserAndStartNextOperation();
