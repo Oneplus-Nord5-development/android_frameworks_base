@@ -2845,29 +2845,44 @@ public class LocationProviderManager extends
 
     @Nullable Location getPermittedLocation(@Nullable Location fineLocation,
             @PermissionLevel int permissionLevel) {
+        Location result;
         switch (permissionLevel) {
             case PERMISSION_FINE:
-                return fineLocation;
+                result = fineLocation;
+                break;
             case PERMISSION_COARSE:
-                return fineLocation != null ? mLocationFudger.createCoarse(fineLocation) : null;
+                result = fineLocation != null ? mLocationFudger.createCoarse(fineLocation) : null;
+                break;
             default:
                 // shouldn't be possible to have a client added without location permissions
                 throw new AssertionError();
         }
+        if (result != null && android.provider.Settings.System.getInt(mContext.getContentResolver(), "hide_mock_location", 0) == 1) {
+            result = new Location(result);
+            result.setMock(false);
+        }
+        return result;
     }
 
     @Nullable LocationResult getPermittedLocationResult(
             @Nullable LocationResult fineLocationResult, @PermissionLevel int permissionLevel) {
+        LocationResult result;
         switch (permissionLevel) {
             case PERMISSION_FINE:
-                return fineLocationResult;
+                result = fineLocationResult;
+                break;
             case PERMISSION_COARSE:
-                return fineLocationResult != null ? mLocationFudger.createCoarse(fineLocationResult)
+                result = fineLocationResult != null ? mLocationFudger.createCoarse(fineLocationResult)
                         : null;
+                break;
             default:
                 // shouldn't be possible to have a client added without location permissions
                 throw new AssertionError();
         }
+        if (result != null && android.provider.Settings.System.getInt(mContext.getContentResolver(), "hide_mock_location", 0) == 1) {
+            result = result.map(loc -> { Location l = new Location(loc); l.setMock(false); return l; });
+        }
+        return result;
     }
 
     public void dump(FileDescriptor fd, IndentingPrintWriter ipw, String[] args) {
