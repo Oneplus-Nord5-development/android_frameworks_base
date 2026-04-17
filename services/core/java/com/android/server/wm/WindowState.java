@@ -251,6 +251,8 @@ import com.android.internal.protolog.ProtoLog;
 import com.android.internal.protolog.common.LogLevel;
 import com.android.internal.util.FrameworkStatsLog;
 import com.android.internal.util.ToBooleanFunction;
+import com.android.server.LocalServices;
+import com.android.server.applock.AppLockManagerInternal;
 import com.android.server.policy.WindowManagerPolicy;
 import com.android.server.wm.LocalAnimationAdapter.AnimationSpec;
 import com.android.server.wm.RefreshRatePolicy.FrameRateVote;
@@ -1877,6 +1879,13 @@ class WindowState extends WindowContainer<WindowState> implements WindowManagerP
         }
 
         if ((mAttrs.flags & WindowManager.LayoutParams.FLAG_SECURE) != 0) {
+            return true;
+        }
+
+        final AppLockManagerInternal appLock =
+                LocalServices.getService(AppLockManagerInternal.class);
+        if (appLock != null && mActivityRecord != null && mActivityRecord.packageName != null &&
+                appLock.isPackageLocked(mActivityRecord.packageName, mActivityRecord.mUserId)) {
             return true;
         }
 

@@ -146,6 +146,22 @@ public final class AppLockManagerService extends SystemService {
 
     private final AppLockManagerInternal mLocalService = new AppLockManagerInternal() {
         @Override
+        public boolean isPackageLocked(@NonNull String packageName, int userId) {
+            try {
+                if (!mServiceReady || !mBootCompleted || mDisabled) {
+                    return false;
+                }
+                synchronized (mLock) {
+                    final ArraySet<String> lockedPackages = mLockedPackagesByUser.get(userId);
+                    return lockedPackages != null && lockedPackages.contains(packageName);
+                }
+            } catch (Throwable t) {
+                disableFeature("checking whether a package is locked", t);
+                return false;
+            }
+        }
+
+        @Override
         public boolean shouldShowAppLockForPackage(@NonNull String packageName, int userId) {
             try {
                 return shouldProtectPackage(packageName, userId);

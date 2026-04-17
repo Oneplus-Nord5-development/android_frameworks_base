@@ -29,4 +29,30 @@
         android:layout_height="80dp"
         android:layout_marginBottom="160dp"/>
 
+    <LinearLayout
+        android:id="@+id/custom_password_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone"
+        android:padding="24dp"
+        android:layout_marginTop="-140dp">
+
+        <EditText
+            android:id="@+id/custom_password_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textPassword"
+            android:hint="App Lock Password"
+            android:singleLine="true"/>
+
+        <Button
+            android:id="@+id/custom_password_submit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@android:string/ok"/>
+    </LinearLayout>
+
 </LinearLayout>

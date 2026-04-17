@@ -28,11 +28,18 @@ import android.content.IntentSender;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
 import android.hardware.biometrics.BiometricManager;
+import android.hardware.biometrics.BiometricPrompt;
 import android.os.Bundle;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.os.CancellationSignal;
 import android.text.TextUtils;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
+import java.security.MessageDigest;
+import java.util.Base64;
 import android.window.OnBackInvokedCallback;
 import android.window.OnBackInvokedDispatcher;
 
@@ -121,6 +128,15 @@ public class AppLockActivity extends Activity {
             return;
         }
 
+        final String customPassword = LineageSettings.Secure.getStringForUser(
+                getContentResolver(), AppLockUtils.LINEAGE_SETTINGS_APP_LOCK_CUSTOM_PASSWORD,
+                getTargetUserId());
+
+        if (!TextUtils.isEmpty(customPassword)) {
+            showCustomPasswordPrompt(customPassword);
+            return;
+        }
+
         finishAfterCancel();
     }
 
@@ -143,6 +159,24 @@ public class AppLockActivity extends Activity {
             return;
         }
 
+        final String customPassword = LineageSettings.Secure.getStringForUser(
+                getContentResolver(), AppLockUtils.LINEAGE_SETTINGS_APP_LOCK_CUSTOM_PASSWORD,
+                getTargetUserId());
+
+        int isPin = LineageSettings.Secure.getIntForUser(getContentResolver(),
+                AppLockUtils.LINEAGE_SETTINGS_APP_LOCK_CUSTOM_IS_PIN, 0, getTargetUserId());
+
+        final boolean hasCustomPassword = !TextUtils.isEmpty(customPassword);
+        int authenticators = getAllowedAuthenticators();
+
+        if (hasCustomPassword) {
+            if (authenticators == DEVICE_CREDENTIAL) {
+                showCustomPasswordPrompt(customPassword);
+                return;
+            }
+            authenticators &= ~DEVICE_CREDENTIAL;
+        }
+
         final Intent confirmIntent = new Intent().setClassName(
                 AppLockUtils.SETTINGS_PACKAGE,
                 AppLockUtils.CONFIRM_DEVICE_CREDENTIAL_ACTIVITY_CLASS);
@@ -152,10 +186,17 @@ public class AppLockActivity extends Activity {
         confirmIntent.putExtra(KeyguardManager.EXTRA_TITLE, getTitleText(protectedPackage));
         confirmIntent.putExtra(KeyguardManager.EXTRA_DESCRIPTION,
                 getDescriptionText(protectedPackage));
-        confirmIntent.putExtra(AppLockUtils.EXTRA_BIOMETRIC_PROMPT_NEGATIVE_BUTTON_TEXT,
-                getString(android.R.string.cancel));
+
+        if (hasCustomPassword) {
+            confirmIntent.putExtra(AppLockUtils.EXTRA_BIOMETRIC_PROMPT_NEGATIVE_BUTTON_TEXT,
+                    isPin == 1 ? "Use custom PIN" : "Use custom password");
+        } else {
+            confirmIntent.putExtra(AppLockUtils.EXTRA_BIOMETRIC_PROMPT_NEGATIVE_BUTTON_TEXT,
+                    getString(android.R.string.cancel));
+        }
+
         confirmIntent.putExtra(AppLockUtils.EXTRA_BIOMETRIC_PROMPT_AUTHENTICATORS,
-                getAllowedAuthenticators());
+                authenticators);
 
         final Bundle options;
         if (isTaskOverlayChallenge()) {
@@ -170,6 +211,52 @@ public class AppLockActivity extends Activity {
 
         mAuthenticationLaunched = true;
         startActivityForResult(confirmIntent, REQUEST_CODE_CONFIRM_CREDENTIALS, options);
+    }
+
+    private void showCustomPasswordPrompt(String expectedHashBase64) {
+        if (mAuthenticationLaunched || isFinishing()) {
+            return;
+        }
+        mAuthenticationLaunched = true;
+        
+        final View passwordView = findViewById(R.id.custom_password_view);
+        final EditText passwordInput = findViewById(R.id.custom_password_input);
+        final Button passwordSubmit = findViewById(R.id.custom_password_submit);
+
+        int isPin = LineageSettings.Secure.getIntForUser(getContentResolver(),
+                AppLockUtils.LINEAGE_SETTINGS_APP_LOCK_CUSTOM_IS_PIN, 0, getTargetUserId());
+        if (isPin == 1) {
+            passwordInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+            passwordInput.setHint("App Lock PIN");
+        } else {
+            passwordInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+            passwordInput.setHint("App Lock Password");
+        }
+
+        passwordView.setVisibility(View.VISIBLE);
+        passwordInput.requestFocus();
+
+        passwordSubmit.setOnClickListener(v -> {
+            String input = passwordInput.getText().toString();
+            String salt = LineageSettings.Secure.getStringForUser(getContentResolver(),
+                    AppLockUtils.LINEAGE_SETTINGS_APP_LOCK_CUSTOM_SALT, getTargetUserId());
+            try {
+                MessageDigest md = MessageDigest.getInstance("SHA-256");
+                if (salt != null) md.update(salt.getBytes());
+                byte[] hash = md.digest(input.getBytes());
+                String encodedHash = Base64.getEncoder().encodeToString(hash);
+                if (encodedHash.equals(expectedHashBase64)) {
+                    reportAttempt(true);
+                    launchTargetIfNeeded();
+                    finish();
+                } else {
+                    passwordInput.setText("");
+                    passwordInput.setError(isPin == 1 ? "Incorrect PIN" : "Incorrect password");
+                }
+            } catch (Exception e) {
+                finishAfterCancel();
+            }
+        });
     }
 
     private void launchTargetIfNeeded() {
@@ -228,9 +315,15 @@ public class AppLockActivity extends Activity {
                 AppLockUtils.LINEAGE_SETTINGS_APP_LOCK_BIOMETRICS_ALLOWED, 0,
                 getTargetUserId()) == 1) {
             final BiometricManager biometricManager = getSystemService(BiometricManager.class);
-            if (biometricManager != null && biometricManager.canAuthenticate(getTargetUserId(),
-                    BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS) {
-                return DEVICE_CREDENTIAL | BIOMETRIC_STRONG;
+            if (biometricManager != null) {
+                if (biometricManager.canAuthenticate(getTargetUserId(), BIOMETRIC_STRONG)
+                        == BiometricManager.BIOMETRIC_SUCCESS) {
+                    return DEVICE_CREDENTIAL | BIOMETRIC_STRONG;
+                }
+                if (biometricManager.canAuthenticate(getTargetUserId(),
+                        BiometricManager.Authenticators.BIOMETRIC_WEAK) == BiometricManager.BIOMETRIC_SUCCESS) {
+                    return DEVICE_CREDENTIAL | BiometricManager.Authenticators.BIOMETRIC_WEAK;
+                }
             }
         }
         return DEVICE_CREDENTIAL;

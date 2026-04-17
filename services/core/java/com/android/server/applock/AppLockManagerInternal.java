@@ -27,6 +27,8 @@ import android.content.pm.ActivityInfo;
  * Internal interface for LineageOS App Lock enforcement.
  */
 public interface AppLockManagerInternal {
+    boolean isPackageLocked(@NonNull String packageName, int userId);
+
     boolean shouldShowAppLockForPackage(@NonNull String packageName, int userId);
 
     @Nullable

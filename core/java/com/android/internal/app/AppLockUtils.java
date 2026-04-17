@@ -37,6 +37,12 @@ public final class AppLockUtils {
     public static final String LINEAGE_SETTINGS_APP_LOCK_PACKAGES = "lineage_app_lock_packages";
     public static final String LINEAGE_SETTINGS_APP_LOCK_BIOMETRICS_ALLOWED =
             "lineage_app_lock_biometrics_allowed";
+    public static final String LINEAGE_SETTINGS_APP_LOCK_CUSTOM_PASSWORD =
+            "lineage_app_lock_custom_password";
+    public static final String LINEAGE_SETTINGS_APP_LOCK_CUSTOM_SALT =
+            "lineage_app_lock_custom_salt";
+    public static final String LINEAGE_SETTINGS_APP_LOCK_CUSTOM_IS_PIN =
+            "lineage_app_lock_custom_is_pin";
 
     public static final String APP_LOCK_ACTIVITY_PACKAGE = "com.android.systemui";
     public static final String APP_LOCK_ACTIVITY_CLASS =
