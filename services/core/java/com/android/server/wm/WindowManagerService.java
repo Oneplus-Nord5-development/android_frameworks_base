@@ -241,7 +241,6 @@ import android.provider.Settings;
 import android.service.vr.IVrManager;
 import android.service.vr.IVrStateCallbacks;
 import android.sysprop.SurfaceFlingerProperties;
-import android.text.TextUtils;
 import android.text.format.DateUtils;
 import android.tracing.TracingUtils;
 import android.util.ArrayMap;
@@ -761,9 +760,6 @@ public class WindowManagerService extends IWindowManager.Stub
     /** Amount of time (in milliseconds) to delay the pointer down outside focus handling */
     private static final int POINTER_DOWN_OUTSIDE_FOCUS_TIMEOUT_MS = 50;
 
-    private static final String PER_APP_REFRESH_RATE_RANGES =
-            "per_app_refresh_rate_ranges";
-
     /** A runnable to handle pointer down outside focus event. */
     @Nullable
     private Runnable mPointerDownOutsideFocusRunnable;
@@ -825,10 +821,6 @@ public class WindowManagerService extends IWindowManager.Stub
     final TrustedPresentationListenerController mTrustedPresentationListenerController =
             new TrustedPresentationListenerController();
 
-    @GuardedBy("mGlobalLock")
-    private final ArrayMap<String, SurfaceControl.RefreshRateRange>
-            mPerAppRefreshRateRanges = new ArrayMap<>();
-
     @VisibleForTesting
     final class SettingsObserver extends ContentObserver {
         private final Uri mDisplayInversionEnabledUri =
@@ -861,8 +853,6 @@ public class WindowManagerService extends IWindowManager.Stub
                 Settings.Global.MAXIMUM_OBSCURING_OPACITY_FOR_TOUCH);
         private final Uri mDevelopmentOverrideDesktopExperienceUri = Settings.Global.getUriFor(
                 Settings.Global.DEVELOPMENT_OVERRIDE_DESKTOP_EXPERIENCE_FEATURES);
-        private final Uri mPerAppRefreshRateRangesUri = Settings.Secure.getUriFor(
-                PER_APP_REFRESH_RATE_RANGES);
 
         public SettingsObserver() {
             super(new Handler());
@@ -900,8 +890,6 @@ public class WindowManagerService extends IWindowManager.Stub
             resolver.registerContentObserver(mMaximumObscuringOpacityForTouchUri, false, this,
                     UserHandle.USER_ALL);
             resolver.registerContentObserver(mDevelopmentOverrideDesktopExperienceUri, false, this,
-                    UserHandle.USER_ALL);
-            resolver.registerContentObserver(mPerAppRefreshRateRangesUri, false, this,
                     UserHandle.USER_ALL);
         }
 
@@ -952,11 +940,6 @@ public class WindowManagerService extends IWindowManager.Stub
 
             if (mDevelopmentOverrideDesktopExperienceUri.equals(uri)) {
                 updateDevelopmentOverrideDesktopExperience();
-                return;
-            }
-
-            if (mPerAppRefreshRateRangesUri.equals(uri)) {
-                updatePerAppRefreshRateRanges();
                 return;
             }
 
@@ -1108,113 +1091,10 @@ public class WindowManagerService extends IWindowManager.Stub
                 mMagnifyIme = enabledMagnifyIme;
             }
         }
-
-        void updatePerAppRefreshRateRanges() {
-            WindowManagerService.this.updatePerAppRefreshRateRanges();
-        }
     }
 
     PowerManager mPowerManager;
     PowerManagerInternal mPowerManagerInternal;
-
-    private void updatePerAppRefreshRateRanges() {
-        final String setting = Settings.Secure.getStringForUser(
-                mContext.getContentResolver(),
-                PER_APP_REFRESH_RATE_RANGES,
-                mCurrentUserId);
-        final ArrayMap<String, SurfaceControl.RefreshRateRange> newRanges =
-                parsePackageRefreshRateRanges(setting);
-
-        synchronized (mGlobalLock) {
-            if (rangesEqual(mPerAppRefreshRateRanges, newRanges)) {
-                return;
-            }
-
-            for (int i = 0; i < mPerAppRefreshRateRanges.size(); i++) {
-                final String pkg = mPerAppRefreshRateRanges.keyAt(i);
-                final SurfaceControl.RefreshRateRange oldRange =
-                        mPerAppRefreshRateRanges.valueAt(i);
-                final SurfaceControl.RefreshRateRange newRange = newRanges.get(pkg);
-                if (newRange == null || !rangeEqual(oldRange, newRange)) {
-                    mRoot.forAllDisplays(dc -> dc.getDisplayPolicy().getRefreshRatePolicy()
-                            .removeRefreshRateRangeForPackage(pkg));
-                }
-            }
-
-            for (int i = 0; i < newRanges.size(); i++) {
-                final String pkg = newRanges.keyAt(i);
-                final SurfaceControl.RefreshRateRange newRange = newRanges.valueAt(i);
-                final SurfaceControl.RefreshRateRange oldRange =
-                        mPerAppRefreshRateRanges.get(pkg);
-                if (oldRange == null || !rangeEqual(oldRange, newRange)) {
-                    mRoot.forAllDisplays(dc -> dc.getDisplayPolicy().getRefreshRatePolicy()
-                            .addRefreshRateRangeForPackage(
-                                    pkg, newRange.min, newRange.max));
-                }
-            }
-
-            mPerAppRefreshRateRanges.clear();
-            mPerAppRefreshRateRanges.putAll(newRanges);
-        }
-    }
-
-    private static boolean rangesEqual(
-            ArrayMap<String, SurfaceControl.RefreshRateRange> a,
-            ArrayMap<String, SurfaceControl.RefreshRateRange> b) {
-        if (a.size() != b.size()) {
-            return false;
-        }
-        for (int i = 0; i < a.size(); i++) {
-            final String key = a.keyAt(i);
-            final SurfaceControl.RefreshRateRange rangeA = a.valueAt(i);
-            final SurfaceControl.RefreshRateRange rangeB = b.get(key);
-            if (rangeB == null || !rangeEqual(rangeA, rangeB)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static boolean rangeEqual(
-            SurfaceControl.RefreshRateRange a,
-            SurfaceControl.RefreshRateRange b) {
-        return Math.abs(a.min - b.min) <= SurfaceControl.RefreshRateRange.FLOAT_TOLERANCE
-                && Math.abs(a.max - b.max) <= SurfaceControl.RefreshRateRange.FLOAT_TOLERANCE;
-    }
-
-    private static ArrayMap<String, SurfaceControl.RefreshRateRange>
-            parsePackageRefreshRateRanges(String setting) {
-        final ArrayMap<String, SurfaceControl.RefreshRateRange> result = new ArrayMap<>();
-        if (TextUtils.isEmpty(setting)) {
-            return result;
-        }
-
-        final String[] entries = setting.split(";");
-        for (String entry : entries) {
-            if (TextUtils.isEmpty(entry)) {
-                continue;
-            }
-            final String[] parts = entry.split(":");
-            if (parts.length != 3) {
-                continue;
-            }
-            final String pkg = parts[0].trim();
-            if (TextUtils.isEmpty(pkg)) {
-                continue;
-            }
-            try {
-                final float min = Float.parseFloat(parts[1]);
-                final float max = Float.parseFloat(parts[2]);
-                if (min <= 0f || max <= 0f || max < min) {
-                    continue;
-                }
-                result.put(pkg, new SurfaceControl.RefreshRateRange(min, max));
-            } catch (NumberFormatException e) {
-                // Ignore malformed entries.
-            }
-        }
-        return result;
-    }
 
     private DeviceStateManager mDeviceStateManager;
     private DeviceStateCallback mDeviceStateCallback;
@@ -1605,7 +1485,6 @@ public class WindowManagerService extends IWindowManager.Stub
         mLatencyTracker = LatencyTracker.getInstance(context);
 
         mSettingsObserver = new SettingsObserver();
-        mSettingsObserver.updatePerAppRefreshRateRanges();
 
         mSurfaceAnimationRunner = new SurfaceAnimationRunner(mTransactionFactory,
                 mPowerManagerInternal);
@@ -4137,7 +4016,6 @@ public class WindowManagerService extends IWindowManager.Stub
             // This call is crucial on user switch to ensure the Magnify IME state
             // is correctly re-evaluated and applied for the new user.
             mSettingsObserver.updateMagnifyIme();
-            mSettingsObserver.updatePerAppRefreshRateRanges();
         }
     }
 
