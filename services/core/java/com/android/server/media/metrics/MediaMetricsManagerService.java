@@ -160,7 +160,7 @@ public final class MediaMetricsManagerService extends SystemService {
             Binder.restoreCallingIdentity(identity);
         }
         if (listString.equals(FAILED_TO_GET)) {
-            Slog.d(TAG, "failed to get " + listName + " from DeviceConfig");
+            // Slog.d(TAG, "failed to get " + listName + " from DeviceConfig");
             return null;
         }
         String[] pkgArr = listString.split(",");
@@ -610,8 +610,8 @@ public final class MediaMetricsManagerService extends SystemService {
                         mBlockList = getListLocked(PLAYER_METRICS_APP_BLOCKLIST);
                         if (mBlockList == null) {
                             // failed to get the blocklist. Block it.
-                            Slog.v(TAG, "Logging level blocked: Failed to get "
-                                    + "PLAYER_METRICS_APP_BLOCKLIST.");
+                            // Slog.v(TAG, "Logging level blocked: Failed to get "
+                            //         + "PLAYER_METRICS_APP_BLOCKLIST.");
                             return LOGGING_LEVEL_BLOCKED;
                         }
                     }
@@ -625,8 +625,8 @@ public final class MediaMetricsManagerService extends SystemService {
                                 getListLocked(PLAYER_METRICS_PER_APP_ATTRIBUTION_BLOCKLIST);
                         if (mNoUidBlocklist == null) {
                             // failed to get the blocklist. Block it.
-                            Slog.v(TAG, "Logging level blocked: Failed to get "
-                                    + "PLAYER_METRICS_PER_APP_ATTRIBUTION_BLOCKLIST.");
+                            // Slog.v(TAG, "Logging level blocked: Failed to get "
+                            //         + "PLAYER_METRICS_PER_APP_ATTRIBUTION_BLOCKLIST.");
                             return LOGGING_LEVEL_BLOCKED;
                         }
                     }

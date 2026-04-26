@@ -1899,10 +1899,10 @@ class TransitionController {
 
         void logOnSend() {
             ProtoLog.v(WM_DEBUG_WINDOW_TRANSITIONS_MIN, "%s", buildOnSendLog());
-            ProtoLog.v(WM_DEBUG_WINDOW_TRANSITIONS_MIN,
-                    "    startWCT=%s", mStartWCT);
-            ProtoLog.v(WM_DEBUG_WINDOW_TRANSITIONS_MIN, "    info=%s",
-                    mInfo.toString("    " /* prefix */));
+            // ProtoLog.v(WM_DEBUG_WINDOW_TRANSITIONS_MIN,
+            //         "    startWCT=%s", mStartWCT);
+            // ProtoLog.v(WM_DEBUG_WINDOW_TRANSITIONS_MIN, "    info=%s",
+            //         mInfo.toString("    " /* prefix */));
         }
 
         private static String toMsString(long nanos) {

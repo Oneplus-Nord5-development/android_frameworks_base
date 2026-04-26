@@ -2273,7 +2273,7 @@ public class InputManagerService extends IInputManager.Stub
     }
 
     private void pilferPointersInternal(@NonNull IBinder inputChannelToken) {
-        ProtoLog.d(INPUT_STREAM_MODIFIER_LOG, "pilferPointers");
+        // ProtoLog.d(INPUT_STREAM_MODIFIER_LOG, "pilferPointers");
         mNative.pilferPointers(inputChannelToken);
     }
 

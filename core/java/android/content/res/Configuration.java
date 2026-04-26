@@ -2379,8 +2379,8 @@ public final class Configuration implements Parcelable, Comparable<Configuration
         mLocaleList = locales == null ? LocaleList.getEmptyLocaleList() : locales;
         locale = mLocaleList.get(0);
         if (!mLocaleList.equals(oldList)) {
-            Slog.v(TAG, "Updating configuration, locales updated from " + oldList
-                    + " to " + mLocaleList);
+            // Slog.v(TAG, "Updating configuration, locales updated from " + oldList
+            //         + " to " + mLocaleList);
         }
         setLayoutDirection(locale);
     }

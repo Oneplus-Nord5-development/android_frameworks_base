@@ -1259,7 +1259,7 @@ public class InsetsController implements WindowInsetsController, InsetsAnimation
 
     public void hide(@InsetsType int types, @Nullable ImeTracker.Token statsToken) {
         if ((types & ime()) != 0) {
-            ProtoLog.d(IME_INSETS_CONTROLLER, "hide(ime())");
+            // ProtoLog.d(IME_INSETS_CONTROLLER, "hide(ime())");
 
             if (statsToken == null) {
                 statsToken = ImeTracker.forLogging().onStart(ImeTracker.TYPE_HIDE,
