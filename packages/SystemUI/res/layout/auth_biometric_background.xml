@@ -31,13 +31,14 @@
 
     <LinearLayout
         android:id="@+id/custom_password_view"
-        android:layout_width="match_parent"
+        android:layout_width="320dp"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:gravity="center"
         android:visibility="gone"
         android:padding="24dp"
-        android:layout_marginTop="-140dp">
+        android:layout_marginTop="-120dp"
+        android:background="@drawable/rounded_bg_app_lock">
 
         <EditText
             android:id="@+id/custom_password_input"
@@ -45,13 +46,24 @@
             android:layout_height="wrap_content"
             android:inputType="textPassword"
             android:hint="App Lock Password"
+            android:textAlignment="center"
+            android:textSize="18sp"
+            android:padding="12dp"
             android:singleLine="true"/>
+
+        <com.android.internal.widget.LockPatternView
+            android:id="@+id/custom_pattern_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:visibility="gone" />
 
         <Button
             android:id="@+id/custom_password_submit"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
+            android:paddingHorizontal="32dp"
             android:text="@android:string/ok"/>
     </LinearLayout>
 

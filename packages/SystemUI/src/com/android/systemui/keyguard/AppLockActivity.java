@@ -102,7 +102,7 @@ public class AppLockActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        if (!mAttemptReported) {
+        if (isFinishing() && !mAttemptReported) {
             reportAttempt(false);
         }
         getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(mBackCallback);
@@ -163,8 +163,15 @@ public class AppLockActivity extends Activity {
                 getContentResolver(), AppLockUtils.LINEAGE_SETTINGS_APP_LOCK_CUSTOM_PASSWORD,
                 getTargetUserId());
 
-        int isPin = LineageSettings.Secure.getIntForUser(getContentResolver(),
-                AppLockUtils.LINEAGE_SETTINGS_APP_LOCK_CUSTOM_IS_PIN, 0, getTargetUserId());
+        int type = LineageSettings.Secure.getIntForUser(getContentResolver(),
+                AppLockUtils.LINEAGE_SETTINGS_APP_LOCK_CUSTOM_TYPE, 0, getTargetUserId());
+        
+        if (type == 0) {
+            int isPin = LineageSettings.Secure.getIntForUser(getContentResolver(),
+                    "lineage_app_lock_custom_is_pin", -1, getTargetUserId());
+            if (isPin == 1) type = 1;
+            else if (isPin == 0) type = 2;
+        }
 
         final boolean hasCustomPassword = !TextUtils.isEmpty(customPassword);
         int authenticators = getAllowedAuthenticators();
@@ -188,8 +195,12 @@ public class AppLockActivity extends Activity {
                 getDescriptionText(protectedPackage));
 
         if (hasCustomPassword) {
+            int stringResId = R.string.lineage_app_lock_use_password;
+            if (type == 1) stringResId = R.string.lineage_app_lock_use_pin;
+            else if (type == 3) stringResId = R.string.lineage_app_lock_use_pattern;
+
             confirmIntent.putExtra(AppLockUtils.EXTRA_BIOMETRIC_PROMPT_NEGATIVE_BUTTON_TEXT,
-                    isPin == 1 ? "Use custom PIN" : "Use custom password");
+                    getString(stringResId));
         } else {
             confirmIntent.putExtra(AppLockUtils.EXTRA_BIOMETRIC_PROMPT_NEGATIVE_BUTTON_TEXT,
                     getString(android.R.string.cancel));
@@ -214,49 +225,94 @@ public class AppLockActivity extends Activity {
     }
 
     private void showCustomPasswordPrompt(String expectedHashBase64) {
-        if (mAuthenticationLaunched || isFinishing()) {
-            return;
-        }
         mAuthenticationLaunched = true;
         
         final View passwordView = findViewById(R.id.custom_password_view);
         final EditText passwordInput = findViewById(R.id.custom_password_input);
+        final com.android.internal.widget.LockPatternView patternInput = findViewById(R.id.custom_pattern_input);
         final Button passwordSubmit = findViewById(R.id.custom_password_submit);
 
-        int isPin = LineageSettings.Secure.getIntForUser(getContentResolver(),
-                AppLockUtils.LINEAGE_SETTINGS_APP_LOCK_CUSTOM_IS_PIN, 0, getTargetUserId());
-        if (isPin == 1) {
-            passwordInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD);
-            passwordInput.setHint("App Lock PIN");
-        } else {
-            passwordInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
-            passwordInput.setHint("App Lock Password");
+        int type = LineageSettings.Secure.getIntForUser(getContentResolver(),
+                AppLockUtils.LINEAGE_SETTINGS_APP_LOCK_CUSTOM_TYPE, 0, getTargetUserId());
+        
+        if (type == 0) {
+            int isPin = LineageSettings.Secure.getIntForUser(getContentResolver(),
+                    "lineage_app_lock_custom_is_pin", -1, getTargetUserId());
+            if (isPin == 1) type = 1;
+            else if (isPin == 0) type = 2;
         }
 
         passwordView.setVisibility(View.VISIBLE);
-        passwordInput.requestFocus();
 
-        passwordSubmit.setOnClickListener(v -> {
-            String input = passwordInput.getText().toString();
-            String salt = LineageSettings.Secure.getStringForUser(getContentResolver(),
-                    AppLockUtils.LINEAGE_SETTINGS_APP_LOCK_CUSTOM_SALT, getTargetUserId());
-            try {
-                MessageDigest md = MessageDigest.getInstance("SHA-256");
-                if (salt != null) md.update(salt.getBytes());
-                byte[] hash = md.digest(input.getBytes());
-                String encodedHash = Base64.getEncoder().encodeToString(hash);
-                if (encodedHash.equals(expectedHashBase64)) {
-                    reportAttempt(true);
-                    launchTargetIfNeeded();
-                    finish();
+        if (type == 3) {
+            passwordInput.setVisibility(View.GONE);
+            passwordSubmit.setVisibility(View.GONE);
+            patternInput.setVisibility(View.VISIBLE);
+            
+            final int finalType = type;
+            patternInput.setOnPatternListener(new com.android.internal.widget.LockPatternView.OnPatternListener() {
+                @Override public void onPatternDetected(java.util.List<com.android.internal.widget.LockPatternView.Cell> pattern, byte patternSize) {
+                    String input = lockPatternToString(pattern);
+                    checkCustomCredential(input, expectedHashBase64, finalType, patternInput, passwordInput);
+                }
+            });
+        } else {
+            patternInput.setVisibility(View.GONE);
+            passwordInput.setVisibility(View.VISIBLE);
+            passwordSubmit.setVisibility(View.VISIBLE);
+
+            if (type == 1) {
+                passwordInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+                passwordInput.setHint("App Lock PIN");
+            } else {
+                passwordInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+                passwordInput.setHint("App Lock Password");
+            }
+            passwordInput.requestFocus();
+
+            final int finalType = type;
+            passwordSubmit.setOnClickListener(v -> {
+                String input = passwordInput.getText().toString();
+                checkCustomCredential(input, expectedHashBase64, finalType, patternInput, passwordInput);
+            });
+        }
+    }
+
+    private void checkCustomCredential(String input, String expectedHashBase64, int type, com.android.internal.widget.LockPatternView patternInput, EditText passwordInput) {
+        String salt = LineageSettings.Secure.getStringForUser(getContentResolver(),
+                AppLockUtils.LINEAGE_SETTINGS_APP_LOCK_CUSTOM_SALT, getTargetUserId());
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            if (salt != null) md.update(salt.getBytes());
+            byte[] hash = md.digest(input.getBytes());
+            String encodedHash = Base64.getEncoder().encodeToString(hash);
+            if (encodedHash.equals(expectedHashBase64)) {
+                reportAttempt(true);
+                launchTargetIfNeeded();
+                finish();
+            } else {
+                if (type == 3) {
+                    patternInput.setDisplayMode(com.android.internal.widget.LockPatternView.DisplayMode.Wrong);
+                    passwordInput.postDelayed(patternInput::clearPattern, 1000);
                 } else {
                     passwordInput.setText("");
-                    passwordInput.setError(isPin == 1 ? "Incorrect PIN" : "Incorrect password");
+                    passwordInput.setError(type == 1 ? "Incorrect PIN" : "Incorrect password");
                 }
-            } catch (Exception e) {
-                finishAfterCancel();
             }
-        });
+        } catch (Exception e) {
+            finishAfterCancel();
+        }
+    }
+
+    private String lockPatternToString(java.util.List<com.android.internal.widget.LockPatternView.Cell> pattern) {
+        if (pattern == null) return "";
+        final int patternSize = pattern.size();
+        byte[] res = new byte[patternSize];
+        for (int i = 0; i < patternSize; i++) {
+            com.android.internal.widget.LockPatternView.Cell cell = pattern.get(i);
+            res[i] = (byte) (cell.getRow() * 3 + cell.getColumn() + '1');
+        }
+        return new String(res);
     }
 
     private void launchTargetIfNeeded() {

@@ -47,6 +47,7 @@ import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.Slog;
 import android.util.SparseArray;
+import android.util.SparseBooleanArray;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.app.AppLockUtils;
@@ -80,6 +81,9 @@ public final class AppLockManagerService extends SystemService {
             new SparseArray<>();
     private final SparseArray<ArrayMap<String, String>> mActiveStandaloneChallengesByUser =
             new SparseArray<>();
+    private final SparseBooleanArray mSecureWindowByUser = new SparseBooleanArray();
+
+    private volatile SparseArray<ArraySet<String>> mLockedPackagesSnapshot = new SparseArray<>();
 
     private ContentResolver mResolver;
     private ActivityTaskManagerInternal mAtmInternal;
@@ -151,10 +155,8 @@ public final class AppLockManagerService extends SystemService {
                 if (!mServiceReady || !mBootCompleted || mDisabled) {
                     return false;
                 }
-                synchronized (mLock) {
-                    final ArraySet<String> lockedPackages = mLockedPackagesByUser.get(userId);
-                    return lockedPackages != null && lockedPackages.contains(packageName);
-                }
+                final ArraySet<String> lockedPackages = mLockedPackagesSnapshot.get(userId);
+                return lockedPackages != null && lockedPackages.contains(packageName);
             } catch (Throwable t) {
                 disableFeature("checking whether a package is locked", t);
                 return false;
@@ -251,6 +253,8 @@ public final class AppLockManagerService extends SystemService {
             mActiveTaskChallengesByUser.remove(userId);
             mActiveTaskChallengeTokensByUser.remove(userId);
             mActiveStandaloneChallengesByUser.remove(userId);
+            mSecureWindowByUser.delete(userId);
+            updateLockedPackagesSnapshot();
         }
     }
 
@@ -266,10 +270,30 @@ public final class AppLockManagerService extends SystemService {
         if (!TextUtils.isEmpty(homePackage)) {
             lockedPackages.remove(homePackage);
         }
+        final boolean secureWindow = LineageSettings.Secure.getIntForUser(mResolver,
+                AppLockUtils.LINEAGE_SETTINGS_APP_LOCK_SECURE_WINDOW, 1, userId) == 1;
         synchronized (mLock) {
             mLockedPackagesByUser.put(userId, lockedPackages);
+            if (secureWindow) {
+                mSecureWindowByUser.put(userId, true);
+            } else {
+                mSecureWindowByUser.delete(userId);
+            }
+            updateLockedPackagesSnapshot();
             prunePendingUnlocksLocked(userId, SystemClock.elapsedRealtime());
         }
+    }
+
+    @GuardedBy("mLock")
+    private void updateLockedPackagesSnapshot() {
+        final SparseArray<ArraySet<String>> snapshot = new SparseArray<>();
+        for (int i = 0; i < mLockedPackagesByUser.size(); i++) {
+            int currentUserId = mLockedPackagesByUser.keyAt(i);
+            if (mSecureWindowByUser.get(currentUserId)) {
+                snapshot.put(currentUserId, mLockedPackagesByUser.valueAt(i));
+            }
+        }
+        mLockedPackagesSnapshot = snapshot;
     }
 
     private boolean shouldProtectPackage(@Nullable String packageName, int userId) {
@@ -676,6 +700,9 @@ public final class AppLockManagerService extends SystemService {
         mResolver.registerContentObserver(LineageSettings.Secure.getUriFor(
                         AppLockUtils.LINEAGE_SETTINGS_APP_LOCK_BIOMETRICS_ALLOWED),
                 false, mSettingsObserver, UserHandle.USER_ALL);
+        mResolver.registerContentObserver(LineageSettings.Secure.getUriFor(
+                        AppLockUtils.LINEAGE_SETTINGS_APP_LOCK_SECURE_WINDOW),
+                false, mSettingsObserver, UserHandle.USER_ALL);
 
         final IntentFilter screenStateFilter = new IntentFilter(Intent.ACTION_SCREEN_OFF);
         getContext().registerReceiver(mScreenStateReceiver, screenStateFilter,
@@ -737,6 +764,8 @@ public final class AppLockManagerService extends SystemService {
             mActiveTaskChallengesByUser.clear();
             mActiveTaskChallengeTokensByUser.clear();
             mActiveStandaloneChallengesByUser.clear();
+            mSecureWindowByUser.clear();
+            updateLockedPackagesSnapshot();
         }
         Slog.wtf(TAG, "Disabling App Lock after failure while " + reason, t);
     }
