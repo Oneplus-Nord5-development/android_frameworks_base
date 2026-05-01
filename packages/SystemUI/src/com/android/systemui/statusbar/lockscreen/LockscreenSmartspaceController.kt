@@ -306,6 +306,14 @@ constructor(
 
     val isWeatherEnabled: Boolean
         get() {
+            val showCustomWeather =
+                systemSettings.getIntForUser(
+                    LOCKSCREEN_WEATHER_ENABLED,
+                    0,
+                    userTracker.userId,
+                ) == 1
+            if (showCustomWeather) return false
+
             val showWeather =
                 secureSettings.getIntForUser(LOCK_SCREEN_WEATHER_ENABLED, 1, userTracker.userId) ==
                     1
@@ -314,13 +322,11 @@ constructor(
 
     val isOmniWeatherEnabled: Boolean
         get() {
-            val showCustomWeather =
-                systemSettings.getIntForUser(
-                    LOCKSCREEN_WEATHER_ENABLED,
-                    0,
-                    userTracker.userId,
-                ) == 1
-            return showCustomWeather && !isWeatherEnabled
+            return systemSettings.getIntForUser(
+                LOCKSCREEN_WEATHER_ENABLED,
+                0,
+                userTracker.userId,
+            ) == 1
         }
 
     val isEnabled: Boolean
