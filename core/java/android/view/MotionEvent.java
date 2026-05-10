@@ -2563,6 +2563,12 @@ public final class MotionEvent extends InputEvent implements Parcelable {
     }
 
     /** @hide */
+    public final void clearObscuredFlags() {
+        final int flags = getFlags();
+        nativeSetFlags(mNativePtr, flags & ~FLAG_WINDOW_IS_OBSCURED & ~FLAG_WINDOW_IS_PARTIALLY_OBSCURED);
+    }
+
+    /** @hide */
     @Override
     public final boolean isTainted() {
         final int flags = getFlags();

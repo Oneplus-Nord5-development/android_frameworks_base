@@ -10824,6 +10824,10 @@ public final class ViewRootImpl implements ViewParent,
 
         @Override
         public void onInputEvent(InputEvent event) {
+            if (event instanceof MotionEvent
+                    && android.provider.Settings.System.getInt(mContext.getContentResolver(), "hide_app_overlays", 0) == 1) {
+                ((MotionEvent) event).clearObscuredFlags();
+            }
             processRawInputEvent(event);
         }
 
