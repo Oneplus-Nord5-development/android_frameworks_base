@@ -291,4 +291,7 @@
 
     <!-- Notification counter -->
     <color name="notification_number_text_color">#ff000000</color>
+
+    <!-- reTicker -->
+    <color name="reticker_background_color">@android:color/system_neutral1_50</color>
 </resources>

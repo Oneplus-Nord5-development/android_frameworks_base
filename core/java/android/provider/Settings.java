@@ -5415,6 +5415,20 @@ public final class Settings {
         public static final String SCREEN_BRIGHTNESS_MODE = "screen_brightness_mode";
 
         /**
+         * reTicker Status
+         * @hide
+         */
+        @Readable
+        public static final String RETICKER_STATUS = "reticker_status";
+
+        /**
+         * reTicker Colored
+         * @hide
+         */
+        @Readable
+        public static final String RETICKER_COLORED = "reticker_colored";
+
+        /**
          * Adjustment to auto-brightness to make it generally more (>0.0 <1.0)
          * or less (<0.0 >-1.0) bright.
          * @hide

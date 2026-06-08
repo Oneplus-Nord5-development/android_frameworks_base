@@ -97,6 +97,9 @@ interface ShadeViewController {
     /** Notifies the shade that a status bar detected a long press gesture. */
     fun onStatusBarLongPress(event: MotionEvent)
 
+    /** reTicker view visibility update */
+    fun reTickerView(visibility: Boolean) {}
+
     /** Returns the ShadeFoldAnimator. */
     @Deprecated("This interface is deprecated in Scene Container")
     val shadeFoldAnimator: ShadeFoldAnimator
