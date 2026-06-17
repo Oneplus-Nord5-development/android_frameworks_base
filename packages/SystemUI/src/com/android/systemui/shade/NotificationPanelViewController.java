@@ -3195,6 +3195,7 @@ public final class NotificationPanelViewController implements
             }
             mExpandedFraction = Math.min(1f,
                     maxPanelHeight == 0 ? 0 : mExpandedHeight / maxPanelHeight);
+            com.android.systemui.util.ScrimUtils.get().setExpandedFraction(mExpandedFraction);
             if (mExpandedFraction > 0f && mExpectingSynthesizedDown) {
                 mExpectingSynthesizedDown = false;
             }
@@ -3638,6 +3639,7 @@ public final class NotificationPanelViewController implements
 
             // TODO: maybe add a listener for barstate
             mBarState = statusBarState;
+            com.android.systemui.util.ScrimUtils.get().setBarState(mBarState);
             mQsController.setBarState(statusBarState);
 
             boolean fromShadeToKeyguard = statusBarState == KEYGUARD

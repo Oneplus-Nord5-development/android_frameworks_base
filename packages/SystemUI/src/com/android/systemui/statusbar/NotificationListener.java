@@ -138,6 +138,7 @@ public class NotificationListener extends NotificationListenerWithPlugins implem
         if (DEBUG) Log.d(TAG, "onNotificationPosted: " + sbn);
         if (sbn != null && !onPluginNotificationPosted(sbn, rankingMap)) {
             mMainExecutor.execute(() -> {
+                com.android.systemui.util.ScrimUtils.get().onNotificationPosted(sbn);
                 for (NotificationHandler handler : mNotificationHandlers) {
                     handler.onNotificationPosted(sbn, rankingMap);
                 }
@@ -151,6 +152,7 @@ public class NotificationListener extends NotificationListenerWithPlugins implem
         if (DEBUG) Log.d(TAG, "onNotificationRemoved: " + sbn + " reason: " + reason);
         if (sbn != null && !onPluginNotificationRemoved(sbn, rankingMap)) {
             mMainExecutor.execute(() -> {
+                com.android.systemui.util.ScrimUtils.get().onNotificationRemoved(sbn);
                 for (NotificationHandler handler : mNotificationHandlers) {
                     handler.onNotificationRemoved(sbn, rankingMap, reason);
                 }

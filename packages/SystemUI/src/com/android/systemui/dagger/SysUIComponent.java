@@ -208,4 +208,9 @@ public interface SysUIComponent {
      * Member injection into the supplied argument.
      */
     void inject(PeopleProvider peopleProvider);
+
+    /**
+     * Get the MediaViewController.
+     */
+    com.android.systemui.media.MediaViewController mediaViewController();
 }

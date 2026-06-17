@@ -290,6 +290,7 @@ public class StatusBarStateControllerImpl implements
             for (RankedListener rl : new ArrayList<>(mListeners)) {
                 rl.mListener.onStateChanged(mState);
             }
+            com.android.systemui.util.ScrimUtils.get().setBarState(mState);
 
             for (RankedListener rl : new ArrayList<>(mListeners)) {
                 rl.mListener.onStatePostChange();

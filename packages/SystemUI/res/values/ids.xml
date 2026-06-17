@@ -308,4 +308,6 @@
     <item type="id" name="screen_off_animation_guard_set" />
     <item type="id" name="screen_off_animation_guard_reported_wtf" />
     <item type="id" name="screen_off_animation_guard_screen_off_updates" />
+    <!-- id for custom lockscreen/status bar overlays -->
+    <item type="id" name="custom_overlay_container" />
 </resources>

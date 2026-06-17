@@ -255,6 +255,7 @@ public class KeyguardStateControllerImpl implements KeyguardStateController {
                     keyguardFadingAway ? 1 : 0);
             mKeyguardFadingAway = keyguardFadingAway;
             invokeForEachCallback(Callback::onKeyguardFadingAwayChanged);
+            com.android.systemui.util.ScrimUtils.get().onKeyguardFadingAwayChanged(keyguardFadingAway);
         }
     }
 
@@ -371,6 +372,7 @@ public class KeyguardStateControllerImpl implements KeyguardStateController {
             mKeyguardGoingAway = keyguardGoingAway;
             mKeyguardInteractorLazy.get().setIsKeyguardGoingAway(keyguardGoingAway);
             invokeForEachCallback(Callback::onKeyguardGoingAwayChanged);
+            com.android.systemui.util.ScrimUtils.get().onKeyguardGoingAwayChanged(keyguardGoingAway);
         }
     }
 
@@ -380,6 +382,7 @@ public class KeyguardStateControllerImpl implements KeyguardStateController {
             mPrimaryBouncerShowing = showing;
 
             invokeForEachCallback(Callback::onPrimaryBouncerShowingChanged);
+            com.android.systemui.util.ScrimUtils.get().onPrimaryBouncerShowingChanged(showing);
         }
     }
 
