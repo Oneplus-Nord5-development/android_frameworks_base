@@ -13431,6 +13431,13 @@ public final class Settings {
         public static final String HIDE_DEVELOPER_STATUS = "hide_developer_status";
 
         /**
+         * Control whether to hide and block GMS and Play Store from selected apps.
+         * @hide
+         */
+        @Readable
+        public static final String HIDE_GMS = "hide_gms";
+
+        /**
          * Keys we no longer back up under the current schema, but want to continue to
          * process when restoring historical backup datasets.
          *
