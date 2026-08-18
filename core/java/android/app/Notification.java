@@ -8387,7 +8387,7 @@ public class Notification implements Parcelable
      * @hide
      */
     public boolean isPromotedOngoing() {
-        return Flags.uiRichOngoing() && (flags & Notification.FLAG_PROMOTED_ONGOING) != 0;
+        return (flags & Notification.FLAG_PROMOTED_ONGOING) != 0 || isRequestPromotedOngoing();
     }
 
     /**

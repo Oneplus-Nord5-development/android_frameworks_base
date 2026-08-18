@@ -115,6 +115,7 @@ internal constructor(
         mutableListOf()
 
     private var screenBitmap: Bitmap? = null
+    private var pendingScreenshotData: ScreenshotData? = null
     private var screenshotTakenInPortrait = false
     private var screenshotAnimation: Animator? = null
     private var packageName = ""
@@ -150,7 +151,10 @@ internal constructor(
         reloadAssets()
 
         actionExecutor = actionExecutorFactory.create(window.window, viewProxy) { finishDismiss() }
-        actionsController = screenshotActionsControllerFactory.getController(actionExecutor)
+        actionsController =
+            screenshotActionsControllerFactory.getController(actionExecutor) { onResult ->
+                saveCurrentScreenshotToStorage(onResult)
+            }
 
         copyBroadcastReceiver =
             object : BroadcastReceiver() {
@@ -201,6 +205,7 @@ internal constructor(
         screenBitmap = currentBitmap
         val oldPackageName = packageName
         packageName = screenshot.packageNameString
+        pendingScreenshotData = screenshot
 
         if (!isUserSetupComplete(Process.myUserHandle())) {
             Log.w(TAG, "User setup not complete, displaying toast only")
@@ -596,6 +601,14 @@ internal constructor(
             }
             return
         }
+        exportToStorage(screenshot, requestId, finisher, onResult)
+    }
+    private fun exportToStorage(
+        screenshot: ScreenshotData,
+        requestId: UUID,
+        finisher: Consumer<Uri?>,
+        onResult: Consumer<ImageExporter.Result>,
+    ) {
         val future =
             imageExporter.export(
                 bgExecutor,
@@ -626,6 +639,25 @@ internal constructor(
             },
             mainExecutor,
         )
+    }
+
+    fun saveCurrentScreenshotToStorage(onResult: Consumer<ScreenshotSavedResult?>) {
+        val screenshot = pendingScreenshotData
+        if (screenshot?.bitmap == null) {
+            Log.e(TAG, "saveCurrentScreenshotToStorage: no pending screenshot bitmap")
+            onResult.accept(null)
+            return
+        }
+        exportToStorage(screenshot, UUID.randomUUID(), Consumer {}) { result ->
+            if (result.uri != null) {
+                Toast.makeText(context, R.string.screenshot_save_to_storage_label, Toast.LENGTH_SHORT).show()
+                onResult.accept(
+                    ScreenshotSavedResult(result.uri, screenshot.userHandle, result.timestamp)
+                )
+            } else {
+                onResult.accept(null)
+            }
+        }
     }
 
     /** Logs success/failure of the screenshot saving task, and shows an error if it failed. */

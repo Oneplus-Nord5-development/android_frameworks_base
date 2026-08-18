@@ -19,6 +19,7 @@ package com.android.systemui.screenshot
 import android.app.assist.AssistContent
 import android.content.Context
 import android.net.Uri
+import android.provider.Settings
 import android.util.Log
 import androidx.appcompat.content.res.AppCompatResources
 import com.android.internal.logging.UiEventLogger
@@ -38,6 +39,7 @@ import dagger.assisted.AssistedInject
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import lineageos.providers.LineageSettings
 
 /**
  * Provides actions for screenshots. This class can be overridden by a vendor-specific SysUI
@@ -49,6 +51,8 @@ interface ScreenshotActionsProvider {
     fun onScrollChipInvalidated()
 
     fun setCompletedScreenshot(result: ScreenshotSavedResult)
+
+    fun saveToStorage() {}
 
     /**
      * Provide the AssistContent for the focused task if available, null if the focused task isn't
@@ -83,6 +87,13 @@ constructor(
     private var pendingAction: (suspend (ScreenshotSavedResult) -> Unit)? = null
     private var result: ScreenshotSavedResult? = null
     private var webUri: Uri? = null
+
+    private val isClipboardOnly: Boolean
+        get() = LineageSettings.System.getInt(
+            context.contentResolver,
+            LineageSettings.System.SCREENSHOT_CLIPBOARD_ONLY,
+            0,
+        ) == 1
 
     init {
         actionsCallback.providePreviewAction(
@@ -124,22 +135,36 @@ constructor(
             }
         }
 
-        actionsCallback.provideActionButton(
-            ActionButtonAppearance(
-                AppCompatResources.getDrawable(context, R.drawable.ic_screenshot_edit),
-                null,
-                context.resources.getString(R.string.screenshot_edit_description),
-            ),
-            showDuringEntrance = true,
-        ) {
-            debugLog(LogConfig.DEBUG_ACTIONS) { "Edit tapped" }
-            uiEventLogger.log(SCREENSHOT_EDIT_TAPPED, 0, request.packageNameString)
-            onDeferrableActionTapped { result ->
-                actionExecutor.startSharedTransition(
-                    actionIntentCreator.createEdit(result.uri),
-                    result.user,
-                    true,
-                )
+        if (isClipboardOnly) {
+            actionsCallback.provideActionButton(
+                ActionButtonAppearance(
+                    AppCompatResources.getDrawable(context, R.drawable.ic_screenshot_save),
+                    null,
+                    context.resources.getString(R.string.screenshot_save_to_storage_label),
+                ),
+                showDuringEntrance = true,
+            ) {
+                debugLog(LogConfig.DEBUG_ACTIONS) { "Save to storage tapped" }
+                actionsCallback.saveToStorage()
+            }
+        } else {
+            actionsCallback.provideActionButton(
+                ActionButtonAppearance(
+                    AppCompatResources.getDrawable(context, R.drawable.ic_screenshot_edit),
+                    null,
+                    context.resources.getString(R.string.screenshot_edit_description),
+                ),
+                showDuringEntrance = true,
+            ) {
+                debugLog(LogConfig.DEBUG_ACTIONS) { "Edit tapped" }
+                uiEventLogger.log(SCREENSHOT_EDIT_TAPPED, 0, request.packageNameString)
+                onDeferrableActionTapped { result ->
+                    actionExecutor.startSharedTransition(
+                        actionIntentCreator.createEdit(result.uri),
+                        result.user,
+                        true,
+                    )
+                }
             }
         }
 
@@ -184,11 +209,11 @@ constructor(
 
     override fun setCompletedScreenshot(result: ScreenshotSavedResult) {
         if (this.result != null) {
-            Log.e(TAG, "Got a second completed screenshot for existing request!")
-            return
+            debugLog(LogConfig.DEBUG_ACTIONS) { "Replacing completed screenshot result" }
         }
         this.result = result
         pendingAction?.also { applicationScope.launch { it.invoke(result) } }
+        pendingAction = null
     }
 
     override fun onAssistContent(assistContent: AssistContent?) {

@@ -34,7 +34,97 @@ object DynamicIslandFeatureSettings {
     const val FLASHLIGHT = "status_bar_dynamic_island_flashlight"
     const val STOPWATCH = "status_bar_dynamic_island_stopwatch"
     const val LIVE_SCORES = "status_bar_dynamic_island_live_scores"
+    const val LIVE_SCORES_SOURCE = "status_bar_dynamic_island_live_scores_source"
+    const val PINNED_SPORTS = "status_bar_dynamic_island_pinned_sports"
     const val SHOW_LYRICS = "status_bar_dynamic_island_lyrics"
+
+    const val LIVE_SCORES_SOURCE_ANY = 0
+    const val LIVE_SCORES_SOURCE_GOOGLE = 1
+    const val LIVE_SCORES_SOURCE_FOTMOB = 2
+    const val LIVE_SCORES_SOURCE_SOFASCORE = 3
+    const val LIVE_SCORES_SOURCE_FLASHSCORE = 4
+    const val LIVE_SCORES_SOURCE_CRICBUZZ = 5
+    const val LIVE_SCORES_SOURCE_ESPN = 6
+    const val LIVE_SCORES_SOURCE_NON_GOOGLE = 7
+
+    fun ContentResolver.readDynamicIslandFeatureString(
+        key: String,
+        defaultValue: String = "",
+    ): String {
+        return LineageSettings.System.getStringForUser(
+            this,
+            key,
+            UserHandle.USER_CURRENT,
+        ) ?: defaultValue
+    }
+
+    fun observeDynamicIslandFeatureString(
+        context: Context,
+        key: String,
+        defaultValue: String = "",
+    ): Flow<String> =
+        callbackFlow {
+            val observer =
+                object : ContentObserver(Handler(Looper.getMainLooper())) {
+                    override fun onChange(selfChange: Boolean) {
+                        trySend(
+                            context.contentResolver.readDynamicIslandFeatureString(
+                                key,
+                                defaultValue,
+                            )
+                        )
+                    }
+                }
+
+            context.contentResolver.registerContentObserver(
+                LineageSettings.System.getUriFor(key),
+                false,
+                observer,
+                UserHandle.USER_ALL,
+            )
+            trySend(context.contentResolver.readDynamicIslandFeatureString(key, defaultValue))
+            awaitClose { context.contentResolver.unregisterContentObserver(observer) }
+        }
+
+    fun ContentResolver.readDynamicIslandFeatureInt(
+        key: String,
+        defaultValue: Int = 0,
+    ): Int {
+        return LineageSettings.System.getIntForUser(
+            this,
+            key,
+            defaultValue,
+            UserHandle.USER_CURRENT,
+        )
+    }
+
+    fun observeDynamicIslandFeatureInt(
+        context: Context,
+        key: String,
+        defaultValue: Int = 0,
+    ): Flow<Int> =
+        callbackFlow {
+            val observer =
+                object : ContentObserver(Handler(Looper.getMainLooper())) {
+                    override fun onChange(selfChange: Boolean) {
+                        trySend(
+                            context.contentResolver.readDynamicIslandFeatureInt(
+                                key,
+                                defaultValue,
+                            )
+                        )
+                    }
+                }
+
+            context.contentResolver.registerContentObserver(
+                LineageSettings.System.getUriFor(key),
+                false,
+                observer,
+                UserHandle.USER_ALL,
+            )
+            trySend(context.contentResolver.readDynamicIslandFeatureInt(key, defaultValue))
+            awaitClose { context.contentResolver.unregisterContentObserver(observer) }
+        }
 
     fun ContentResolver.readDynamicIslandFeatureEnabled(
         key: String,

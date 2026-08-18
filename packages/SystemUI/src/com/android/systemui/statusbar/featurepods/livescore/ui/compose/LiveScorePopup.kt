@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.android.systemui.common.ui.compose.Icon
 import com.android.systemui.statusbar.featurepods.livescore.shared.model.LiveScoreChipModel
 
@@ -49,6 +50,13 @@ fun LiveScorePopup(
     modifier: Modifier = Modifier,
 ) {
     val accent = MaterialTheme.colorScheme.primary
+    val cleanTitle = model.title
+        ?.replace(Regex("[\\p{So}\\p{Cn}\\p{Cs}\\p{Extended_Pictographic}]"), "")
+        ?.trim()
+    val cleanSubtitle = model.subtitle
+        ?.replace(Regex("[\\p{So}\\p{Cn}\\p{Cs}\\p{Extended_Pictographic}]"), "")
+        ?.trim()
+
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         contentColor = MaterialTheme.colorScheme.onSurface,
@@ -64,20 +72,31 @@ fun LiveScorePopup(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(contentAlignment = Alignment.Center) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 model.icon?.let {
                     Icon(
                         icon = it,
-                        modifier = Modifier.size(48.dp),
+                        modifier = Modifier.size(44.dp),
+                        tint = Color.Unspecified,
+                    )
+                }
+                model.secondaryIcon?.let {
+                    Icon(
+                        icon = it,
+                        modifier = Modifier.size(44.dp),
                         tint = Color.Unspecified,
                     )
                 }
             }
+
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                model.title?.takeIf { it.isNotBlank() }?.let { title ->
+                cleanTitle?.takeIf { it.isNotBlank() }?.let { title ->
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleMedium,
@@ -88,11 +107,13 @@ fun LiveScorePopup(
                 }
                 Text(
                     text = model.score,
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                    ),
                     color = accent,
                 )
-                model.subtitle?.takeIf { it.isNotBlank() }?.let { subtitle ->
+                cleanSubtitle?.takeIf { it.isNotBlank() }?.let { subtitle ->
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodyMedium,

@@ -57,11 +57,14 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.android.systemui.common.ui.compose.Icon
+import com.android.systemui.statusbar.featurepods.livescore.shared.model.LiveScoreChipModel
 import com.android.systemui.statusbar.featurepods.popups.ui.model.PopupChipModel
 import com.android.systemui.statusbar.featurepods.popups.ui.model.PopupContentModel
 import com.android.systemui.statusbar.featurepods.screenrecord.shared.model.ScreenRecordPopupModel
@@ -103,6 +106,18 @@ fun StatusBarDynamicIslandChip(
         Modifier.onGloballyPositioned { coordinates ->
             onChipBoundsChanged(coordinates.boundsInScreen(view))
         }
+    if (viewModel.popupContent is PopupContentModel.LiveScore && viewModel.icons.isNotEmpty()) {
+        LiveScoreIslandChip(
+            viewModel = viewModel,
+            liveScoreModel = (viewModel.popupContent as PopupContentModel.LiveScore).model,
+            cutoutSpec = cutoutSpec,
+            onTap = onTap,
+            chipOutline = chipOutline,
+            modifier = modifier.then(boundsModifier),
+        )
+        return
+    }
+
     if (viewModel.popupContent.isUtilityStatusContent() && viewModel.icons.isNotEmpty()) {
         UtilityStatusIslandChip(
             viewModel = viewModel,
@@ -147,18 +162,18 @@ fun StatusBarDynamicIslandChip(
             modifier
                 .then(boundsModifier)
                 .openSquishAnimation(viewModel.isPopupShown)
-                .defaultMinSize(minHeight = 32.dp)
+                .defaultMinSize(minHeight = 26.dp)
                 .widthIn(
                     min = compactWidth ?: 0.dp,
                     max = compactWidth ?: CompactIslandMaxWidth,
                 )
                 .clip(chipShape)
-                .background(chipBackgroundColor)
-                .border(width = 1.dp, color = chipOutline, shape = chipShape)
+                .background(Color.Black)
+                .border(width = 1.dp, color = Color(0xFF26262B), shape = chipShape)
                 .clickable(onClick = onTap)
-                .padding(horizontal = 12.dp, vertical = 7.dp),
+                .padding(horizontal = 9.dp, vertical = 4.dp),
         horizontalArrangement =
-            if (isMediaChip) Arrangement.SpaceBetween else Arrangement.spacedBy(8.dp),
+            if (isMediaChip) Arrangement.SpaceBetween else Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         viewModel.icons.forEachIndexed { index, chipIcon ->
@@ -169,7 +184,7 @@ fun StatusBarDynamicIslandChip(
             Icon(
                 icon = chipIcon.icon,
                 modifier = Modifier
-                    .size(if (isArtworkLike) 18.dp else 16.dp)
+                    .size(if (isArtworkLike) 16.dp else 14.dp)
                     .then(
                         if (isArtworkLike) {
                             Modifier.clip(CircleShape)
@@ -191,7 +206,7 @@ fun StatusBarDynamicIslandChip(
             ?.let { text ->
                 Text(
                     text = text,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelMedium,
                     color = chipContentColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -244,6 +259,149 @@ fun StatusBarDynamicIslandChip(
 }
 
 @Composable
+private fun LiveScoreIslandChip(
+    viewModel: PopupChipModel.Shown,
+    liveScoreModel: LiveScoreChipModel,
+    cutoutSpec: DynamicIslandCutoutSpec,
+    onTap: () -> Unit,
+    chipOutline: Color,
+    modifier: Modifier = Modifier,
+) {
+    val chipShape = RoundedCornerShape(50)
+    val rawScore = liveScoreModel.score
+        .replace(Regex("[\\p{So}\\p{Cn}\\p{Cs}\\p{Extended_Pictographic}]"), "")
+        .trim()
+
+    val rawTitle = (liveScoreModel.title?.takeUnless { it.isBlank() } ?: liveScoreModel.appName)
+        .replace(Regex("[\\p{So}\\p{Cn}\\p{Cs}\\p{Extended_Pictographic}]"), "")
+        .trim()
+    val titleTeams = rawTitle
+        .split(Regex("""\s*(?:vs|v|-|@)\s*""", RegexOption.IGNORE_CASE))
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+
+    val homeAbbr = if (titleTeams.isNotEmpty()) titleTeams[0].take(3).uppercase() else ""
+    val awayAbbr = if (titleTeams.size >= 2) titleTeams[1].take(3).uppercase() else ""
+
+    val isCricket = rawScore.contains("/") || rawScore.contains("ov", true)
+
+    val leftText: String
+    val rightText: String
+
+    if (isCricket) {
+        // Extract batting score (e.g. 292/4)
+        val scoreRegex = Regex("""(\d+/\d+|\d+/\d+\s*d)""")
+        val matchScore = scoreRegex.find(rawScore)
+        val battingScore = matchScore?.value ?: rawScore.split(Regex("""\s+""")).firstOrNull() ?: rawScore
+
+        // Extract overs (e.g. 63.3 ov)
+        val oversRegex = Regex("""\(?(\d+(?:\.\d+)?\s*ov)\)?""", RegexOption.IGNORE_CASE)
+        val matchOvers = oversRegex.find(rawScore)
+        val overs = matchOvers?.groupValues?.getOrNull(1) ?: ""
+
+        leftText = battingScore
+        rightText = if (overs.isNotBlank()) overs else (if (awayAbbr.isNotBlank()) awayAbbr else "LIVE")
+    } else {
+        val scoreParts = rawScore.split(Regex("""\s*[-–:]\s*""")).filter { it.isNotBlank() }
+        when {
+            scoreParts.size == 2 -> {
+                leftText = scoreParts[0]
+                rightText = scoreParts[1]
+            }
+            rawScore.isNotBlank() && !rawScore.equals("LIVE", true) && !rawScore.equals("vs", true) -> {
+                leftText = if (homeAbbr.isNotBlank()) "$homeAbbr $rawScore" else rawScore
+                rightText = if (awayAbbr.isNotBlank()) awayAbbr else "LIVE"
+            }
+            else -> {
+                leftText = if (homeAbbr.isNotBlank()) homeAbbr else "LIVE"
+                rightText = if (awayAbbr.isNotBlank()) awayAbbr else ""
+            }
+        }
+    }
+
+    val centerCutoutGap = cutoutSpec.embeddedGapWidth.coerceAtLeast(30.dp)
+
+    Row(
+        modifier =
+            modifier
+                .openSquishAnimation(viewModel.isPopupShown)
+                .defaultMinSize(minHeight = 28.dp)
+                .clip(chipShape)
+                .background(Color.Black)
+                .border(width = 1.dp, color = Color(0xFF26262B), shape = chipShape)
+                .clickable(onClick = onTap)
+                .padding(horizontal = 8.dp, vertical = 3.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Left Group: Home Crest + Left Score/Team
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            viewModel.icons.firstOrNull()?.icon?.let { iconModel ->
+                Icon(
+                    icon = iconModel,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clip(RoundedCornerShape(3.dp)),
+                    tint = Color.Unspecified,
+                )
+            }
+
+            Text(
+                text = leftText,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                ),
+                color = Color.White,
+            )
+        }
+
+        // Center Notch / Camera Cutout Gap (keeps scores completely clear of camera hole)
+        Spacer(modifier = Modifier.width(centerCutoutGap))
+
+        // Right Group: Right Score/Team + Away Crest
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            if (rightText.isNotBlank()) {
+                Text(
+                    text = rightText,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                    ),
+                    color = Color.White,
+                )
+            }
+
+            if (viewModel.icons.size >= 2) {
+                Icon(
+                    icon = viewModel.icons[1].icon,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clip(CircleShape),
+                    tint = Color.Unspecified,
+                )
+            } else {
+                viewModel.icons.firstOrNull()?.icon?.let { iconModel ->
+                    Icon(
+                        icon = iconModel,
+                        modifier = Modifier
+                            .size(18.dp)
+                            .clip(CircleShape),
+                        tint = Color.Unspecified,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun UtilityStatusIslandChip(
     viewModel: PopupChipModel.Shown,
     onTap: () -> Unit,
@@ -287,31 +445,33 @@ private fun UtilityStatusIslandChip(
         modifier =
             modifier
                 .openSquishAnimation(viewModel.isPopupShown)
-                .defaultMinSize(minHeight = 32.dp)
+                .defaultMinSize(minHeight = 26.dp)
                 .width(connectedIslandWidth)
                 .clip(RoundedCornerShape(50))
-                .background(chipBackgroundColor)
-                .border(width = 1.dp, color = chipOutline, shape = RoundedCornerShape(50))
+                .background(Color.Black)
+                .border(width = 1.dp, color = Color(0xFF26262B), shape = RoundedCornerShape(50))
                 .clickable(onClick = onTap),
         horizontalArrangement = Arrangement.spacedBy(0.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Spacer(modifier = Modifier.width(10.dp))
-        Icon(
-            icon = viewModel.icons.first().icon,
-            modifier = Modifier.size(16.dp),
-            tint = chipContentColor,
-        )
+        Spacer(modifier = Modifier.width(8.dp))
+        viewModel.icons.firstOrNull()?.icon?.let { iconModel ->
+            Icon(
+                icon = iconModel,
+                modifier = Modifier.size(14.dp),
+                tint = chipContentColor,
+            )
+        }
         Spacer(modifier = Modifier.width(cutoutSpec.embeddedGapWidth))
         Box(
             modifier =
                 Modifier.width(rightSegmentWidth)
-                    .padding(start = 6.dp, top = 7.dp, bottom = 7.dp, end = 6.dp),
+                    .padding(start = 4.dp, top = 4.dp, bottom = 4.dp, end = 6.dp),
             contentAlignment = Alignment.CenterEnd,
         ) {
             Text(
                 text = utilityText,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelMedium,
                 color = chipContentColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -319,7 +479,7 @@ private fun UtilityStatusIslandChip(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(8.dp))
     }
 }
 
@@ -330,12 +490,12 @@ private fun StatusContent(
     showSwipeHint: Boolean,
 ) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelLarge,
+            style = MaterialTheme.typography.labelMedium,
             color = color,
             maxLines = 1,
         )
@@ -353,26 +513,26 @@ private fun SwipeHint(color: Color) {
     ) {
         repeat(2) {
             Box(
-                modifier = Modifier.size(width = 3.dp, height = 3.dp)
+                modifier = Modifier.size(width = 2.5.dp, height = 2.5.dp)
                     .background(color = color, shape = CircleShape)
             )
         }
     }
 }
 
-private val CompactIslandMaxWidth = 192.dp
-private val CompactMediaIslandWidth = 108.dp
-private val CompactTimerIslandWidth = 116.dp
-private val CompactRecordingIslandWidth = 88.dp
-private val CompactAlarmIslandWidth = 92.dp
-private val CompactUtilityIslandWidth = 74.dp
-private val CompactUtilityConnectedIslandChromeWidth = 42.dp
-private val CompactUtilityConnectedIslandMinWidth = 132.dp
-private val CompactUtilityConnectedIslandMaxWidth = 188.dp
-private val DynamicIslandEmbeddedGapFallbackWidth = 38.dp
-private val DynamicIslandEmbeddedGapMinWidth = 34.dp
-private val DynamicIslandEmbeddedGapMaxWidth = 88.dp
-private val DynamicIslandEmbeddedGapSidePadding = 10.dp
+private val CompactIslandMaxWidth = 138.dp
+private val CompactMediaIslandWidth = 92.dp
+private val CompactTimerIslandWidth = 96.dp
+private val CompactRecordingIslandWidth = 76.dp
+private val CompactAlarmIslandWidth = 80.dp
+private val CompactUtilityIslandWidth = 64.dp
+private val CompactUtilityConnectedIslandChromeWidth = 32.dp
+private val CompactUtilityConnectedIslandMinWidth = 108.dp
+private val CompactUtilityConnectedIslandMaxWidth = 144.dp
+private val DynamicIslandEmbeddedGapFallbackWidth = 32.dp
+private val DynamicIslandEmbeddedGapMinWidth = 28.dp
+private val DynamicIslandEmbeddedGapMaxWidth = 72.dp
+private val DynamicIslandEmbeddedGapSidePadding = 8.dp
 
 data class DynamicIslandCutoutSpec(
     val embeddedGapWidth: Dp,

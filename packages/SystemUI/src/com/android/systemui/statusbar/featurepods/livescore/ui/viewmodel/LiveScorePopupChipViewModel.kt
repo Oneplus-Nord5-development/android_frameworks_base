@@ -28,7 +28,9 @@ import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.statusbar.NotificationLockscreenUserManager
 import com.android.systemui.statusbar.featurepods.livescore.shared.model.LiveScoreChipModel
 import com.android.systemui.statusbar.featurepods.popups.shared.DynamicIslandFeatureSettings.LIVE_SCORES
+import com.android.systemui.statusbar.featurepods.popups.shared.DynamicIslandFeatureSettings.LIVE_SCORES_SOURCE
 import com.android.systemui.statusbar.featurepods.popups.shared.DynamicIslandFeatureSettings.observeDynamicIslandFeatureEnabled
+import com.android.systemui.statusbar.featurepods.popups.shared.DynamicIslandFeatureSettings.observeDynamicIslandFeatureInt
 import com.android.systemui.statusbar.featurepods.popups.shared.toActivityLaunchAction
 import com.android.systemui.statusbar.featurepods.popups.ui.model.ChipIcon
 import com.android.systemui.statusbar.featurepods.popups.ui.model.ColorsModel
@@ -41,6 +43,7 @@ import com.android.systemui.statusbar.notification.shared.ActiveNotificationMode
 import com.android.systemui.statusbar.policy.KeyguardStateController
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
 /** ViewModel backing live-score notifications surfaced inside the dynamic island. */
@@ -64,12 +67,13 @@ constructor(
                 combine(
                     activeNotificationsInteractor.promotedOngoingNotifications,
                     activeNotificationsInteractor.allRepresentativeNotifications,
-                ) { promotedNotifications, allNotifications ->
+                    observeDynamicIslandFeatureInt(context, LIVE_SCORES_SOURCE),
+                ) { promotedNotifications: List<ActiveNotificationModel>, allNotifications: Map<String, ActiveNotificationModel>, sourceMode: Int ->
                     val orderedNotifications =
                         promotedNotifications.mapNotNull { notif -> allNotifications[notif.key] }
                     val candidate =
-                        orderedNotifications.firstOrNull { it.isLiveScoreCandidate() }
-                            ?: allNotifications.values.firstOrNull { it.isLiveScoreCandidate() }
+                        orderedNotifications.firstOrNull { it.isLiveScoreCandidate(sourceMode) }
+                            ?: allNotifications.values.firstOrNull { it.isLiveScoreCandidate(sourceMode) }
                     toPopupChipModel(
                         candidate?.toLiveScoreModel(
                             context = context,
@@ -80,7 +84,7 @@ constructor(
                         )
                     )
                 }
-                .combine(observeDynamicIslandFeatureEnabled(context, LIVE_SCORES)) { model, enabled ->
+                .combine(observeDynamicIslandFeatureEnabled(context, LIVE_SCORES)) { model: PopupChipModel, enabled: Boolean ->
                     if (enabled) model else PopupChipModel.Hidden(PopupChipId.LiveScore)
                 },
         )
@@ -103,6 +107,12 @@ constructor(
                             icon = it,
                             onClick = model.onOpen,
                         )
+                    },
+                    model.secondaryIcon?.let {
+                        ChipIcon(
+                            icon = it,
+                            onClick = model.onOpen,
+                        )
                     }
                 ),
             chipText = buildCollapsedText(model),
@@ -113,9 +123,27 @@ constructor(
     }
 
     private fun buildCollapsedText(model: LiveScoreChipModel): String {
-        val title = model.title?.takeUnless { it.isBlank() } ?: model.appName
-        val score = model.score.takeUnless { it.isBlank() }
-        return listOfNotNull(score, title.takeUnless { it.isBlank() }).joinToString(" • ")
+        val rawScore = model.score.stripEmojiSlop().takeUnless { it.isBlank() }
+        val rawTitle = (model.title?.takeUnless { it.isBlank() } ?: model.appName).stripEmojiSlop()
+        return if (rawScore != null) {
+            val teams = rawTitle.split(" vs ", " - ", " @ ", " v ")
+            val shortTitle = if (teams.size >= 2) {
+                "${teams[0].take(3).trim()} v ${teams[1].take(3).trim()}".uppercase()
+            } else {
+                rawTitle.take(10)
+            }
+            if (rawScore.equals("LIVE", true)) {
+                if (shortTitle.isNotBlank()) shortTitle else "LIVE"
+            } else {
+                "$rawScore • $shortTitle"
+            }
+        } else {
+            rawTitle.take(12)
+        }
+    }
+
+    private fun String.stripEmojiSlop(): String {
+        return replace(Regex("[\\p{So}\\p{Cn}\\p{Cs}\\p{Extended_Pictographic}]"), "").replace(Regex("\\s+"), " ").trim()
     }
 
     @AssistedFactory
@@ -124,15 +152,56 @@ constructor(
     }
 }
 
-private fun ActiveNotificationModel.isLiveScoreCandidate(): Boolean {
+private fun ActiveNotificationModel.isLiveScoreCandidate(sourceMode: Int = 0): Boolean {
     val content = promotedContent?.privateVersion ?: return false
     if (callType != com.android.systemui.statusbar.notification.shared.CallType.None) {
         return false
     }
-    if (content.shortCriticalText.isNullOrBlank()) {
-        return false
+    val pkg = packageName.lowercase()
+    val isGoogle = pkg == "com.google.android.googlequicksearchbox" ||
+            pkg.contains("googleassistant") ||
+            pkg.contains("googlequicksearchbox") ||
+            pkg.startsWith("com.google.android.apps.") ||
+            pkg.startsWith("com.google.android.")
+    val isFotmob = pkg.contains("fotmob")
+    val isSofascore = pkg.contains("sofascore")
+    val isFlashscore = pkg.contains("flashscore") || pkg.contains("livesport")
+    val isCricbuzz = pkg.contains("cricbuzz")
+    val isEspn = pkg.contains("espn")
+
+    when (sourceMode) {
+        com.android.systemui.statusbar.featurepods.popups.shared.DynamicIslandFeatureSettings.LIVE_SCORES_SOURCE_GOOGLE -> {
+            if (!isGoogle) return false
+        }
+        com.android.systemui.statusbar.featurepods.popups.shared.DynamicIslandFeatureSettings.LIVE_SCORES_SOURCE_FOTMOB -> {
+            if (!isFotmob) return false
+        }
+        com.android.systemui.statusbar.featurepods.popups.shared.DynamicIslandFeatureSettings.LIVE_SCORES_SOURCE_SOFASCORE -> {
+            if (!isSofascore) return false
+        }
+        com.android.systemui.statusbar.featurepods.popups.shared.DynamicIslandFeatureSettings.LIVE_SCORES_SOURCE_FLASHSCORE -> {
+            if (!isFlashscore) return false
+        }
+        com.android.systemui.statusbar.featurepods.popups.shared.DynamicIslandFeatureSettings.LIVE_SCORES_SOURCE_CRICBUZZ -> {
+            if (!isCricbuzz) return false
+        }
+        com.android.systemui.statusbar.featurepods.popups.shared.DynamicIslandFeatureSettings.LIVE_SCORES_SOURCE_ESPN -> {
+            if (!isEspn) return false
+        }
+        com.android.systemui.statusbar.featurepods.popups.shared.DynamicIslandFeatureSettings.LIVE_SCORES_SOURCE_NON_GOOGLE -> {
+            if (isGoogle) return false
+        }
     }
-    return !content.title.isNullOrBlank() || !content.text.isNullOrBlank()
+
+    val isSportsFetcher = pkg == "org.lineageos.sportsfetcher"
+    val isKnownSportsApp = isGoogle || isFotmob || isSofascore || isFlashscore || isCricbuzz || isEspn || isSportsFetcher
+    if (!content.shortCriticalText.isNullOrBlank()) {
+        return true
+    }
+    if (isKnownSportsApp) {
+        return !content.title.isNullOrBlank() || !content.text.isNullOrBlank()
+    }
+    return false
 }
 
 private fun ActiveNotificationModel.toLiveScoreModel(
@@ -142,15 +211,25 @@ private fun ActiveNotificationModel.toLiveScoreModel(
     lockscreenUserManager: NotificationLockscreenUserManager,
     keyguardStateController: KeyguardStateController,
 ): LiveScoreChipModel {
-    val content = checkNotNull(promotedContent).privateVersion
+    val content = promotedContent?.privateVersion
     val contentDescription = ContentDescription.Loaded(appName)
+    val scoreRegex = Regex("""\b(\d+\s*[-–:]\s*\d+|\d+/\d+)\b""")
+    val rawText = content?.text?.toString()
+    val rawTitle = content?.title?.toString() ?: appName
+    val score = content?.shortCriticalText
+        ?: rawText?.let { scoreRegex.find(it)?.value }
+        ?: rawTitle.let { scoreRegex.find(it)?.value }
+        ?: "LIVE"
+    val smallIcon = statusBarIcon?.loadDrawable(context)?.let { Icon.Loaded(it, contentDescription) }
+    val secondaryIcon = content?.skeletonLargeIcon?.drawable?.let { Icon.Loaded(it, contentDescription) }
     return LiveScoreChipModel(
         key = key,
-        icon = statusBarIcon?.loadDrawable(context)?.let { Icon.Loaded(it, contentDescription) },
+        icon = smallIcon,
+        secondaryIcon = secondaryIcon,
         appName = appName,
-        title = content.title?.toString(),
-        score = content.shortCriticalText.orEmpty(),
-        subtitle = content.text?.toString(),
+        title = rawTitle,
+        score = score,
+        subtitle = rawText,
         onOpen =
             contentIntent.toActivityLaunchAction(
                 activityStarter = activityStarter,

@@ -22,6 +22,7 @@ import com.android.systemui.common.shared.model.Icon
 data class LiveScoreChipModel(
     val key: String,
     val icon: Icon?,
+    val secondaryIcon: Icon? = null,
     val appName: String,
     val title: String?,
     val score: String,

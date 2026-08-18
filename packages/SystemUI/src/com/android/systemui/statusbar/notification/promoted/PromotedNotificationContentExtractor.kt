@@ -114,7 +114,21 @@ constructor(
             return null
         }
 
-        if (!notification.isPromotedOngoing()) {
+        val pkg = entry.sbn.packageName?.lowercase().orEmpty()
+        val isGoogleApp = pkg == "com.google.android.googlequicksearchbox" ||
+                pkg.contains("googleassistant") ||
+                pkg.startsWith("com.google.android.apps.") ||
+                pkg.startsWith("com.google.android.")
+        val isSportsOrLive = notification.shortCriticalText != null ||
+                notification.isRequestPromotedOngoing ||
+                pkg == "org.lineageos.sportsfetcher" ||
+                isGoogleApp ||
+                pkg.contains("fotmob") ||
+                pkg.contains("sofascore") ||
+                pkg.contains("flashscore") ||
+                pkg.contains("cricbuzz") ||
+                pkg.contains("espn")
+        if (!notification.isPromotedOngoing() && !isSportsOrLive) {
             if (LOG_NOT_EXTRACTED) {
                 logger.logExtractionSkipped(entry, "isPromotedOngoing returned false")
             }
