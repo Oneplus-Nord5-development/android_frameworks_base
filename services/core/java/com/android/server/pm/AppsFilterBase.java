@@ -453,6 +453,11 @@ public abstract class AppsFilterBase implements AppsFilterSnapshot {
 
             if (callingPkgSetting != null) {
                 if (callingPkgSetting.getPkg() != null
+                        && com.android.internal.util.lunaris.HideGmsUtils.isGmsPackage(targetPkgSetting.getPackageName())
+                        && com.android.internal.util.lunaris.HideGmsUtils.shouldHideGms(callingPkgSetting.getPackageName())) {
+                    return true;
+                }
+                if (callingPkgSetting.getPkg() != null
                         && !mFeatureConfig.packageIsEnabled(callingPkgSetting.getPkg())) {
                     if (DEBUG_LOGGING) {
                         log(callingSetting, targetPkgSetting, "DISABLED");
@@ -460,6 +465,14 @@ public abstract class AppsFilterBase implements AppsFilterSnapshot {
                     return false;
                 }
             } else {
+                for (int i = callingSharedPkgSettings.size() - 1; i >= 0; i--) {
+                    final AndroidPackage pkg = callingSharedPkgSettings.valueAt(i).getPkg();
+                    if (pkg != null
+                            && com.android.internal.util.lunaris.HideGmsUtils.isGmsPackage(targetPkgSetting.getPackageName())
+                            && com.android.internal.util.lunaris.HideGmsUtils.shouldHideGms(pkg.getPackageName())) {
+                        return true;
+                    }
+                }
                 for (int i = callingSharedPkgSettings.size() - 1; i >= 0; i--) {
                     final AndroidPackage pkg = callingSharedPkgSettings.valueAt(i).getPkg();
                     if (pkg != null && !mFeatureConfig.packageIsEnabled(pkg)) {

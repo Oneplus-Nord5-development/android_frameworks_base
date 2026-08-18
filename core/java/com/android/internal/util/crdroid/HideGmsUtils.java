@@ -29,6 +29,18 @@ public class HideGmsUtils {
         return SystemProperties.getBoolean("sys.boot_completed", false);
     }
 
+    public static boolean shouldHideGms(String packageName) {
+        if (packageName == null || !isBootCompleted()) {
+            return false;
+        }
+
+        android.app.Application app = android.app.ActivityThread.currentApplication();
+        if (app != null) {
+            return shouldHideGms(app.getContentResolver(), packageName);
+        }
+        return false;
+    }
+
     public static boolean shouldHideGms(ContentResolver cr, String packageName) {
         if (cr == null || packageName == null || !isBootCompleted()) {
             return false;
@@ -44,6 +56,10 @@ public class HideGmsUtils {
 
     public static boolean isGmsPackage(String packageName) {
         return packageName != null && gmsPackages.contains(packageName);
+    }
+
+    public static Set<String> getGmsPackages() {
+        return gmsPackages;
     }
 
     private static Set<String> getApps(Context context) {

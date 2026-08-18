@@ -6074,6 +6074,10 @@ public class AccountManagerService
                 serviceInfos) {
             if (isOtherwisePermitted || pmi.hasSignatureCapability(
                     serviceInfo.uid, callingUid, CertCapabilities.AUTH)) {
+                if (serviceInfo.componentInfo != null && !canCallerAccessPackage(
+                        serviceInfo.componentInfo.packageName, callingUid, userId)) {
+                    continue;
+                }
                 managedAccountTypes.add(serviceInfo.type.type);
             }
         }
