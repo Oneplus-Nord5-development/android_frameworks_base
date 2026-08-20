@@ -27,6 +27,7 @@ java_library {
         "keepanno-annotations",
         "services.core",
         "unsupportedappusage",
+        "org.lineageos.platform.internal",
     ],
 
     static_libs: [

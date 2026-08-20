@@ -30,19 +30,25 @@ import android.annotation.SuppressLint;
 import android.app.ActivityManager;
 import android.app.ActivityManagerInternal;
 import android.app.AlarmManager;
+import android.app.AppGlobals;
 import android.app.BroadcastOptions;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.IIntentReceiver;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.IPackageManager;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.PackageManagerInternal;
+import android.content.pm.UserInfo;
 import android.content.res.Resources;
 import android.database.ContentObserver;
+import android.os.UserManager;
+import lineageos.providers.LineageSettings;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -642,6 +648,23 @@ public class DeviceIdleController extends SystemService
      * They can be restored back by calling restoreAppToSystemWhitelist(String).
      */
     private ArrayMap<String, Integer> mRemovedFromSystemWhitelistApps = new ArrayMap<>();
+
+    private static final String GMS_PACKAGE = "com.google.android.gms";
+    private static final String[] GMS_DEVICE_ADMIN_RECEIVERS = {
+        "com.google.android.gms.auth.managed.admin.DeviceAdminReceiver",
+        "com.google.android.gms.mdm.receivers.MdmDeviceAdminReceiver"
+    };
+
+    private boolean mGmsDozeEnabled = false;
+
+    private final ContentObserver mGmsDozeObserver = new ContentObserver(null) {
+        @Override
+        public void onChange(boolean selfChange, Uri uri) {
+            synchronized (DeviceIdleController.this) {
+                updateGmsDozeLocked();
+            }
+        }
+    };
 
     private final ArraySet<DeviceIdleInternal.StationaryListener> mStationaryListeners =
             new ArraySet<>();
@@ -2717,6 +2740,12 @@ public class DeviceIdleController extends SystemService
             readConfigFileLocked();
             updateWhitelistAppIdsLocked();
 
+            mGmsDozeEnabled = LineageSettings.Global.getInt(getContext().getContentResolver(),
+                    LineageSettings.Global.GMS_DOZE, 0) == 1;
+            if (mGmsDozeEnabled) {
+                applyGmsDozeLocked(true);
+            }
+
             mNetworkConnected = true;
             mScreenOn = true;
             mScreenLocked = false;
@@ -2860,11 +2889,93 @@ public class DeviceIdleController extends SystemService
                 mInjector.getTelephonyManager().registerTelephonyCallback(
                         AppSchedulingModuleThread.getExecutor(), mEmergencyCallListener);
 
+                getContext().getContentResolver().registerContentObserver(
+                        LineageSettings.Global.getUriFor(LineageSettings.Global.GMS_DOZE),
+                        false, mGmsDozeObserver, UserHandle.USER_ALL);
+                updateGmsDozeLocked();
+
                 passWhiteListsToForceAppStandbyTrackerLocked();
                 updateInteractivityLocked();
             }
             updateConnectivityState(null);
         }
+    }
+
+    @GuardedBy("this")
+    private void updateGmsDozeLocked() {
+        final boolean enabled = LineageSettings.Global.getInt(getContext().getContentResolver(),
+                LineageSettings.Global.GMS_DOZE, 0) == 1;
+        if (mGmsDozeEnabled != enabled) {
+            mGmsDozeEnabled = enabled;
+            applyGmsDozeLocked(enabled);
+        }
+    }
+
+    @GuardedBy("this")
+    private void applyGmsDozeLocked(boolean enabled) {
+        if (enabled) {
+            mPowerSaveWhitelistApps.remove(GMS_PACKAGE);
+            mPowerSaveWhitelistAppsExceptIdle.remove(GMS_PACKAGE);
+            reportPowerSaveWhitelistChangedLocked();
+            updateWhitelistAppIdsLocked();
+            setGmsComponentsState(false);
+        } else {
+            final PackageManager pm = getContext().getPackageManager();
+            SystemConfig sysConfig = SystemConfig.getInstance();
+            if (sysConfig.getAllowInPowerSave().contains(GMS_PACKAGE)) {
+                try {
+                    ApplicationInfo ai = pm.getApplicationInfo(GMS_PACKAGE,
+                            PackageManager.MATCH_ANY_USER | PackageManager.MATCH_SYSTEM_ONLY);
+                    int appid = UserHandle.getAppId(ai.uid);
+                    mPowerSaveWhitelistApps.put(ai.packageName, appid);
+                    mPowerSaveWhitelistAppsExceptIdle.put(ai.packageName, appid);
+                } catch (PackageManager.NameNotFoundException e) {
+                }
+            } else if (sysConfig.getAllowInPowerSaveExceptIdle().contains(GMS_PACKAGE)) {
+                try {
+                    ApplicationInfo ai = pm.getApplicationInfo(GMS_PACKAGE,
+                            PackageManager.MATCH_ANY_USER | PackageManager.MATCH_SYSTEM_ONLY);
+                    int appid = UserHandle.getAppId(ai.uid);
+                    mPowerSaveWhitelistAppsExceptIdle.put(ai.packageName, appid);
+                } catch (PackageManager.NameNotFoundException e) {
+                }
+            }
+            reportPowerSaveWhitelistChangedLocked();
+            updateWhitelistAppIdsLocked();
+            setGmsComponentsState(true);
+        }
+    }
+
+    private void setGmsComponentsState(boolean enable) {
+        AppSchedulingModuleThread.getHandler().post(() -> {
+            try {
+                final IPackageManager ipm = AppGlobals.getPackageManager();
+                final UserManager um = getContext().getSystemService(UserManager.class);
+                if (ipm == null || um == null) {
+                    return;
+                }
+                final int newState = enable
+                        ? PackageManager.COMPONENT_ENABLED_STATE_DEFAULT
+                        : PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
+                final List<UserInfo> users = um.getAliveUsers();
+                for (UserInfo user : users) {
+                    final int userId = user.id;
+                    for (String component : GMS_DEVICE_ADMIN_RECEIVERS) {
+                        ComponentName cn = ComponentName.unflattenFromString(component);
+                        if (cn != null) {
+                            try {
+                                ipm.setComponentEnabledSetting(cn, newState,
+                                        PackageManager.DONT_KILL_APP, userId, "android");
+                            } catch (Exception e) {
+                                // Component might not exist in installed GMS version
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                Slog.w(TAG, "Failed to update GMS components state", e);
+            }
+        });
     }
 
     @VisibleForTesting
