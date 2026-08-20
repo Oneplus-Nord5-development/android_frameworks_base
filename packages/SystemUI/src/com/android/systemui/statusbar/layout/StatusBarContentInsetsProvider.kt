@@ -19,9 +19,14 @@ package com.android.systemui.statusbar.layout
 import android.annotation.Px
 import android.content.Context
 import android.content.res.Resources
+import android.database.ContentObserver
 import android.graphics.Insets
 import android.graphics.Point
 import android.graphics.Rect
+import android.os.Handler
+import android.os.Looper
+import android.os.UserHandle
+import android.provider.Settings
 import android.util.LruCache
 import android.util.Pair
 import android.view.Display.DEFAULT_DISPLAY
@@ -198,9 +203,38 @@ constructor(
                 }
             )
         }
+        if (paddingObserver == null) {
+            paddingObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+                override fun onChange(selfChange: Boolean) {
+                    clearCachedInsets()
+                }
+            }
+            context.contentResolver.registerContentObserver(
+                Settings.System.getUriFor("status_bar_padding_left"),
+                false, paddingObserver!!, UserHandle.USER_ALL
+            )
+            context.contentResolver.registerContentObserver(
+                Settings.System.getUriFor("status_bar_padding_right"),
+                false, paddingObserver!!, UserHandle.USER_ALL
+            )
+            context.contentResolver.registerContentObserver(
+                Settings.System.getUriFor("status_bar_padding_top"),
+                false, paddingObserver!!, UserHandle.USER_ALL
+            )
+            context.contentResolver.registerContentObserver(
+                Settings.System.getUriFor("status_bar_padding_bottom"),
+                false, paddingObserver!!, UserHandle.USER_ALL
+            )
+        }
     }
 
+    private var paddingObserver: ContentObserver? = null
+
     override fun stop() {
+        paddingObserver?.let {
+            context.contentResolver.unregisterContentObserver(it)
+            paddingObserver = null
+        }
         StatusBarConnectedDisplays.unsafeAssertInNewMode()
         configurationController.removeCallback(this)
         dumpManager.unregisterDumpable(dumpableName)
@@ -354,14 +388,30 @@ constructor(
                 rotatedResources.getDimensionPixelSize(R.dimen.ongoing_appops_dot_diameter)
             else 0
 
+        val customLeft = Settings.System.getIntForUser(
+            context.contentResolver,
+            "status_bar_padding_left",
+            0,
+            UserHandle.USER_CURRENT
+        )
+        val customRight = Settings.System.getIntForUser(
+            context.contentResolver,
+            "status_bar_padding_right",
+            0,
+            UserHandle.USER_CURRENT
+        )
+        val density = context.resources.displayMetrics.density
+        val leftPad = max(0, roundedCornerPadding + (customLeft * density).toInt())
+        val rightPad = max(0, roundedCornerPadding + (customRight * density).toInt())
+
         val minLeft: Int
         val minRight: Int
         if (configurationController.isLayoutRtl) {
-            minLeft = max(minDotPadding, roundedCornerPadding)
-            minRight = roundedCornerPadding
+            minLeft = max(minDotPadding, leftPad)
+            minRight = rightPad
         } else {
-            minLeft = roundedCornerPadding
-            minRight = max(minDotPadding, roundedCornerPadding)
+            minLeft = leftPad
+            minRight = max(minDotPadding, rightPad)
         }
 
         val bottomAlignedMargin = getBottomAlignedMargin(targetRotation, rotatedResources)
@@ -431,7 +481,14 @@ constructor(
 
     override fun getStatusBarPaddingTop(@Rotation rotation: Int?): Int {
         val res = rotation?.let { it -> getResourcesForRotation(it, context) } ?: context.resources
-        return res.getDimensionPixelSize(R.dimen.status_bar_padding_top)
+        val baseTop = res.getDimensionPixelSize(R.dimen.status_bar_padding_top)
+        val customTop = Settings.System.getIntForUser(
+            context.contentResolver,
+            "status_bar_padding_top",
+            0,
+            UserHandle.USER_CURRENT
+        )
+        return max(0, baseTop + (customTop * context.resources.displayMetrics.density).toInt())
     }
 
     override fun dump(pw: PrintWriter, args: Array<out String>) {
