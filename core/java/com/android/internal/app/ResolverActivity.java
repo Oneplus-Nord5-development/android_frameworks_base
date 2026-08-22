@@ -471,7 +471,7 @@ public class ResolverActivity extends Activity implements
         // different "last chosen" activities in the different profiles, and PackageManager doesn't
         // provide any more information to help us select between them.
         boolean filterLastUsed = filterLastUsedConfig() && mSupportsAlwaysUseOption
-                && !isVoiceInteraction() && !shouldShowTabs() && !hasCloneProfile();
+                && !isVoiceInteraction() && !shouldShowTabs();
         mMultiProfilePagerAdapter =
                 createMultiProfilePagerAdapter(initialIntents, rList, filterLastUsed);
         if (configureContentView()) {
@@ -773,6 +773,9 @@ public class ResolverActivity extends Activity implements
     }
 
     protected UserHandle getPersonalProfileUserHandle() {
+        if (isLaunchedAsCloneProfile()) {
+            return getCloneProfileUserHandle();
+        }
         // When launched in single user mode, only personal tab is populated, so we use
         // tabOwnerUserHandleForLaunch as personal tab's user handle.
         if (privateSpaceEnabled() && isLaunchedInSingleUserMode()) {
@@ -1294,14 +1297,6 @@ public class ResolverActivity extends Activity implements
             boolean filtered) {
         if (!mMultiProfilePagerAdapter.getCurrentUserHandle().equals(getUser())) {
             // Never allow the inactive profile to always open an app.
-            mAlwaysButton.setEnabled(false);
-            return;
-        }
-        // In case of clonedProfile being active, we do not allow the 'Always' option in the
-        // disambiguation dialog of Personal Profile as the package manager cannot distinguish
-        // between cross-profile preferred activities.
-        if (hasCloneProfile() && !mMultiProfilePagerAdapter
-                .getCurrentUserHandle().equals(mWorkProfileUserHandle)) {
             mAlwaysButton.setEnabled(false);
             return;
         }

@@ -137,8 +137,7 @@ public class ResolverListController {
                 | PackageManager.MATCH_DIRECT_BOOT_AWARE
                 | PackageManager.MATCH_DIRECT_BOOT_UNAWARE
                 | (shouldGetResolvedFilter ? PackageManager.GET_RESOLVED_FILTER : 0)
-                | (shouldGetActivityMetadata ? PackageManager.GET_META_DATA : 0)
-                | PackageManager.MATCH_CLONE_PROFILE;
+                | (shouldGetActivityMetadata ? PackageManager.GET_META_DATA : 0);
         return getResolversForIntentAsUserInternal(intents, userHandle, baseFlags);
     }
 
