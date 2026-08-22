@@ -106,6 +106,7 @@ import android.view.accessibility.AccessibilityNodeInfo;
 
 import com.android.app.animation.Interpolators;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.graphics.ColorUtils;
 import com.android.internal.logging.MetricsLogger;
 import com.android.internal.logging.nano.MetricsProto.MetricsEvent;
 import com.android.internal.policy.SystemBarUtils;
@@ -4490,6 +4491,12 @@ public final class NotificationPanelViewController implements
             mReTickerComeback.setBackground(dw);
             mReTickerContentTV.setText(mergedContentText);
             mReTickerContentTV.setTextAppearance(mView.getContext(), R.style.TextAppearance_Notifications_reTicker);
+            int bgColor = mReTickerColored ? notification.color : Notification.COLOR_DEFAULT;
+            if (bgColor == Notification.COLOR_DEFAULT || bgColor == Color.TRANSPARENT) {
+                bgColor = mView.getContext().getColor(R.color.reticker_background_color);
+            }
+            boolean isDarkBg = ColorUtils.calculateLuminance(bgColor) < 0.5;
+            mReTickerContentTV.setTextColor(isDarkBg ? Color.WHITE : Color.BLACK);
             mReTickerContentTV.setSelected(true);
 
             retickerAnimate();
