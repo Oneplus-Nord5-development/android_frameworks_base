@@ -40,6 +40,7 @@ import android.os.SystemProperties;
 import android.os.Trace;
 import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.ravenwood.annotation.RavenwoodReplace;
+import android.util.BoostFramework;
 import android.util.Log;
 import android.util.TimeUtils;
 import android.view.animation.AnimationUtils;
@@ -1076,6 +1077,7 @@ public final class Choreographer {
                 // adjustments from buffer stuffing
                 final long jitterNanos = startNanos - frameTimeNanos;
                 if (jitterNanos >= frameIntervalNanos) {
+                    BoostFramework.getInstance().perfHint(BoostFramework.VENDOR_HINT_FRAME_RECOVERY_BOOST, null);
                     frameTimeNanos = startNanos;
                     if (frameIntervalNanos == 0) {
                         Log.i(TAG, "Vsync data empty due to timeout");

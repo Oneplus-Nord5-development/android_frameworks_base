@@ -21,6 +21,7 @@ import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
 import android.hardware.SensorManager;
 import android.os.Build;
+import android.util.BoostFramework;
 import android.util.Log;
 import android.view.ViewConfiguration;
 import android.view.animation.AnimationUtils;
@@ -438,6 +439,7 @@ public class OverScroller {
         mMode = FLING_MODE;
         mScrollerX.fling(startX, velocityX, minX, maxX, overX);
         mScrollerY.fling(startY, velocityY, minY, maxY, overY);
+        BoostFramework.boostScroll(Math.max(mScrollerX.mDuration, mScrollerY.mDuration));
     }
 
     /**

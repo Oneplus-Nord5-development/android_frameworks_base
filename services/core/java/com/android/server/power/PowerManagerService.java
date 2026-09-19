@@ -6323,21 +6323,23 @@ public final class PowerManagerService extends SystemService
         @Override // Binder call
         public void setPowerBoost(int boost, int durationMs) {
             if (!mSystemReady) {
-                // Service not ready yet, so who the heck cares about power hints, bah.
                 return;
             }
-            mContext.enforceCallingOrSelfPermission(android.Manifest.permission.DEVICE_POWER, null);
+            if (boost != Boost.INTERACTION && boost != Boost.DISPLAY_UPDATE_IMMINENT) {
+                mContext.enforceCallingOrSelfPermission(android.Manifest.permission.DEVICE_POWER, null);
+            }
             setPowerBoostInternal(boost, durationMs);
         }
 
         @Override // Binder call
         public void setPowerMode(int mode, boolean enabled) {
             if (!mSystemReady) {
-                // Service not ready yet, so who the heck cares about power hints, bah.
                 return;
             }
-            mContext.enforceCallingOrSelfPermission(android.Manifest.permission.DEVICE_POWER, null);
-            setPowerModeInternal(mode, enabled); // Intentionally ignore return value
+            if (mode != Mode.LAUNCH) {
+                mContext.enforceCallingOrSelfPermission(android.Manifest.permission.DEVICE_POWER, null);
+            }
+            setPowerModeInternal(mode, enabled);
         }
 
         @Override // Binder call

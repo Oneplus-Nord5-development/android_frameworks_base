@@ -224,6 +224,7 @@ import android.sysprop.DisplayProperties;
 import android.sysprop.ViewProperties;
 import android.text.TextUtils;
 import android.util.AndroidRuntimeException;
+import android.util.BoostFramework;
 import android.util.DisplayMetrics;
 import android.util.EventLog;
 import android.util.IndentingPrintWriter;
@@ -8363,10 +8364,12 @@ public final class ViewRootImpl implements ViewParent,
             // For the variable refresh rate project
             if (handled && shouldTouchBoost(action & MotionEvent.ACTION_MASK,
                     mWindowAttributes.type)) {
-                // set the frame rate to the maximum value.
                 mIsTouchBoosting = true;
                 if (action == MotionEvent.ACTION_DOWN) {
                     mIsPressedGesture = true;
+                    BoostFramework.boostTap();
+                } else {
+                    BoostFramework.boostScroll(BoostFramework.DURATION_SCROLL);
                 }
                 setPreferredFrameRateCategory(mLastPreferredFrameRateCategory);
             }

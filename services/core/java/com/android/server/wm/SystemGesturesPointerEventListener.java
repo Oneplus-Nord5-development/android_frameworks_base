@@ -31,6 +31,7 @@ import android.graphics.Region;
 import android.hardware.display.DisplayManagerGlobal;
 import android.os.Handler;
 import android.os.SystemClock;
+import android.util.BoostFramework;
 import android.util.Slog;
 import android.view.Display;
 import android.view.DisplayCutout;
@@ -182,6 +183,7 @@ class SystemGesturesPointerEventListener implements PointerEventListener {
         }
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
+                BoostFramework.boostTap();
                 mSwipeFireable = true;
                 mDebugFireable = true;
                 mDownPointers = 0;

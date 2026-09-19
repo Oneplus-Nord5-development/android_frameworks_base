@@ -129,6 +129,7 @@ import android.os.UserHandle;
 import android.os.UserManager;
 import android.service.voice.IVoiceInteractionSession;
 import android.text.TextUtils;
+import android.util.BoostFramework;
 import android.util.Pools.SynchronizedPool;
 import android.util.Slog;
 import android.widget.Toast;
@@ -1034,6 +1035,7 @@ class ActivityStarter {
         }
         mLastStartReason = request.reason;
         mLastStartActivityTimeMs = System.currentTimeMillis();
+        BoostFramework.boostLaunch(true);
 
         final IApplicationThread caller = request.caller;
         Intent intent = request.intent;

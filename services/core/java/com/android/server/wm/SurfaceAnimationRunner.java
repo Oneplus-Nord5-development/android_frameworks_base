@@ -29,6 +29,7 @@ import android.hardware.power.Boost;
 import android.os.Handler;
 import android.os.PowerManagerInternal;
 import android.util.ArrayMap;
+import android.util.BoostFramework;
 import android.view.Choreographer;
 import android.view.SurfaceControl;
 import android.view.SurfaceControl.Transaction;
@@ -280,7 +281,7 @@ class SurfaceAnimationRunner {
             }
             startPendingAnimationsLocked(-1);
         }
-        mPowerManagerInternal.setPowerBoost(Boost.INTERACTION, 0);
+        BoostFramework.boostAnimation(BoostFramework.DURATION_ANIMATION);
     }
 
     private void startAnimations(Choreographer.FrameData frameData) {
@@ -296,7 +297,7 @@ class SurfaceAnimationRunner {
             final long vsyncId = frameData.getPreferredFrameTimeline().getVsyncId();
             startPendingAnimationsLocked(vsyncId);
         }
-        mPowerManagerInternal.setPowerBoost(Boost.INTERACTION, 0);
+        BoostFramework.boostAnimation(BoostFramework.DURATION_ANIMATION);
     }
 
     private void scheduleApplyTransaction(long vsyncId) {

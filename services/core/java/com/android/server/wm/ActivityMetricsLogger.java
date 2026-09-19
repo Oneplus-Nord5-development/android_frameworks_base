@@ -96,6 +96,7 @@ import android.os.SystemClock;
 import android.os.Trace;
 import android.os.incremental.IncrementalManager;
 import android.util.ArrayMap;
+import android.util.BoostFramework;
 import android.util.EventLog;
 import android.util.Log;
 import android.util.Slog;
@@ -1189,6 +1190,7 @@ class ActivityMetricsLogger {
     }
 
     private void logAppTransitionFinished(@NonNull TransitionInfo info, boolean isHibernating) {
+        BoostFramework.boostLaunch(false);
         if (DEBUG_METRICS) Slog.i(TAG, "logging finished transition " + info);
 
         // Take a snapshot of the transition info before sending it to the handler for logging.
