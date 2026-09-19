@@ -13348,8 +13348,8 @@ public final class ViewRootImpl implements ViewParent,
             frameRateCategory = FRAME_RATE_CATEGORY_HIGH;
             frameRateReason = FRAME_RATE_CATEGORY_REASON_BOOST;
             view = null;
-        } else if (mIsTouchBoosting && preferredFrameRateCategory < FRAME_RATE_CATEGORY_HIGH_HINT) {
-            frameRateCategory = FRAME_RATE_CATEGORY_HIGH_HINT;
+        } else if (mIsTouchBoosting && preferredFrameRateCategory < FRAME_RATE_CATEGORY_HIGH) {
+            frameRateCategory = FRAME_RATE_CATEGORY_HIGH;
             frameRateReason = FRAME_RATE_CATEGORY_REASON_TOUCH;
             view = null;
         } else {
